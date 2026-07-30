@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Driftwood</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body {
+        margin: 0; padding: 0; width: 100%; height: 100%;
+        background: #05070d; overflow: hidden;
+        font-family: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+      }
+      #stage { display: block; width: 100vw; height: 100vh; }
+      #hud {
+        position: fixed; left: 0; bottom: 0; padding: 10px 14px;
+        color: rgba(235, 240, 250, 0.55); font-size: 12px; line-height: 1.5;
+        text-shadow: 0 1px 3px rgba(0,0,0,.8); pointer-events: none;
+        opacity: 0; transition: opacity .45s ease; white-space: pre; letter-spacing: .2px;
+      }
+      #hud.on { opacity: 1; }
+      #chronicle {
+        position: fixed; right: 0; bottom: 0; padding: 10px 16px; max-width: 44ch;
+        color: rgba(240, 235, 225, 0.72); font-size: 13px; line-height: 1.55;
+        text-align: right; text-shadow: 0 1px 4px rgba(0,0,0,.9); pointer-events: none;
+        font-style: italic;
+      }
+      #chronicle div { opacity: 0; animation: fade 26s ease forwards; }
+      @keyframes fade {
+        0% { opacity: 0; transform: translateY(6px); }
+        6% { opacity: 1; transform: translateY(0); }
+        76% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+      #boot {
+        position: fixed; inset: 0; display: grid; place-items: center;
+        color: #8fa3bd; font-size: 13px; letter-spacing: .18em; text-transform: uppercase;
+        background: #05070d; transition: opacity 1.2s ease;
+      }
+      #boot.gone { opacity: 0; pointer-events: none; }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div id="chronicle"></div>
+    <div id="hud"></div>
+    <div id="boot">driftwood</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

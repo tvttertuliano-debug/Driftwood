@@ -1,0 +1,274 @@
+import { Scheduler, World } from './core/ecs.ts';
+import { EventBus } from './core/events.ts';
+import { PERSIST, RENDER, SIM } from './core/config.ts';
+import { createWorldState } from './sim/worldState.ts';
+import { genesis } from './sim/genesis.ts';
+import {
+  agingSystem, appearSystem, critterSystem, ecologySystem, ephemeralSystem,
+  fireSystem, physicsSystem, timeSystem,
+} from './sim/systems.ts';
+import { actSystem, mindSystem } from './ai/brain.ts';
+import { directorSystem } from './story/director.ts';
+import { Renderer } from './render/renderer.ts';
+import { Ambience } from './audio/ambience.ts';
+import { applySave, loadWorld, savedSeed, saveWorld, wipeSave } from './persist/save.ts';
+import { formatClock, moonName } from './sim/calendar.ts';
+import { describe } from './sim/weather.ts';
+import { CBrain, CCastaway, CNeeds, CProp, CTransform } from './sim/components.ts';
+import { dominantNeed } from './ai/needs.ts';
+import type { DriftContext } from './sim/context.ts';
+
+/**
+ * Ponto de entrada. Laço de passo fixo para a simulação, quadro livre para o
+ * desenho. A janela pode ficar aberta por semanas: nada aqui aloca por quadro.
+ */
+
+const canvas = document.getElementById('stage') as HTMLCanvasElement;
+const chronicleEl = document.getElementById('chronicle') as HTMLDivElement;
+const hudEl = document.getElementById('hud') as HTMLDivElement;
+const bootEl = document.getElementById('boot') as HTMLDivElement;
+
+async function boot(): Promise<void> {
+  const params = new URLSearchParams(location.search);
+  // `?novo` recomeça o mundo do zero; `?semente=123` reproduz uma ilha exata.
+  if (params.has('novo')) await wipeSave();
+  const forcedSeed = params.has('semente') ? Number(params.get('semente')) : null;
+
+  const candidate = params.has('novo') ? null : await loadWorld();
+
+  // A ilha é reconstruída a partir da semente; o save guarda só o que aconteceu
+  // *nela*. Se a semente pedida na URL não for a do save, os dois descrevem
+  // lugares diferentes: aplicar um sobre o outro deixa árvores no ar e cabanas
+  // enterradas. Nesse caso a URL manda e o save é descartado.
+  const savedIsForAnotherIsland =
+    candidate !== null && forcedSeed !== null && savedSeed(candidate.blob) !== forcedSeed;
+  if (savedIsForAnotherIsland) {
+    console.warn(
+      `[driftwood] o mundo salvo é da semente ${savedSeed(candidate!.blob)}, ` +
+      `mas a URL pediu ${forcedSeed}. Começando uma ilha nova com a semente pedida.`,
+    );
+  }
+
+  const saved = savedIsForAnotherIsland ? null : candidate;
+  const seed = forcedSeed ?? (saved ? savedSeed(saved.blob) : Math.floor(Math.random() * 2 ** 31));
+
+  const world = new World(4096);
+  const ws = createWorldState(seed);
+  const bus = new EventBus();
+
+  if (saved) {
+    applySave(saved.blob, world, ws);
+    // Mundo antigo, mas sem ninguém dentro: recomeça em vez de travar.
+    if (world.first(CCastaway) === null) genesis(world, ws);
+  } else {
+    genesis(world, ws);
+  }
+
+  const scheduler = new Scheduler<DriftContext>().add(
+    timeSystem,
+    mindSystem,
+    agingSystem,
+    actSystem,
+    critterSystem,
+    physicsSystem,
+    ephemeralSystem,
+    appearSystem,
+    ecologySystem,
+    fireSystem,
+    directorSystem,
+  );
+
+  const renderer = new Renderer(canvas, seed);
+  const ambience = new Ambience();
+  ambience.bind(bus);
+
+  const ctx: DriftContext = { world, ws, bus, dt: SIM.step, elapsed: 0 };
+
+  // ── crônica na tela ──
+  bus.on('crônica', (ev) => {
+    const line = document.createElement('div');
+    line.textContent = String(ev.text ?? '');
+    chronicleEl.appendChild(line);
+    while (chronicleEl.childElementCount > 4) chronicleEl.removeChild(chronicleEl.firstChild!);
+    setTimeout(() => line.remove(), 26000);
+  });
+
+  // Últimas linhas do save reaparecem discretamente, para o mundo não parecer novo.
+  for (const entry of ws.chronicle.slice(-2)) {
+    const line = document.createElement('div');
+    line.textContent = entry.text;
+    line.style.opacity = '0.35';
+    line.style.animation = 'none';
+    chronicleEl.appendChild(line);
+  }
+
+  // ── laço ──
+  let last = performance.now();
+  let accumulator = 0;
+  let sinceSave = 0;
+  let hudOn = false;
+  let paused = false;
+  let profiling = false;
+
+  const dpr = () => Math.min(window.devicePixelRatio || 1, 2);
+  renderer.resize(dpr());
+  // ResizeObserver pega também os casos em que o elemento muda sem a janela
+  // mudar (painel lateral, tela dividida, entrada em tela cheia).
+  new ResizeObserver(() => renderer.resize(dpr())).observe(canvas);
+  window.addEventListener('resize', () => renderer.resize(dpr()));
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) ambience.suspend();
+    else {
+      ambience.resume();
+      last = performance.now(); // não acumula horas de mundo em segundo plano
+    }
+  });
+
+  const startAudio = () => {
+    void ambience.start();
+    window.removeEventListener('pointerdown', startAudio);
+    window.removeEventListener('keydown', startAudio);
+  };
+  window.addEventListener('pointerdown', startAudio);
+  window.addEventListener('keydown', startAudio);
+
+  window.addEventListener('keydown', (e) => {
+    switch (e.key.toLowerCase()) {
+      case 'i':
+        hudOn = !hudOn;
+        hudEl.classList.toggle('on', hudOn);
+        break;
+      case 'p':
+        paused = !paused;
+        break;
+      case 'f':
+        if (document.fullscreenElement) void document.exitFullscreen();
+        else void canvas.requestFullscreen().catch(() => undefined);
+        break;
+      case 'm':
+        ambience.setVolume(ambience.volume > 0.05 ? 0 : 0.55);
+        break;
+      case 'd':
+        profiling = !profiling;
+        break;
+      default:
+        break;
+    }
+  });
+
+  function frame(now: number): void {
+    const rawDt = Math.min(0.25, (now - last) / 1000);
+    last = now;
+
+    if (!paused) {
+      accumulator += rawDt;
+      let steps = 0;
+      while (accumulator >= SIM.step && steps < SIM.maxCatchUp) {
+        bus.setClock(ws.worldSeconds);
+        ctx.dt = SIM.step;
+        ctx.elapsed += SIM.step;
+        scheduler.run(ctx, profiling);
+        bus.dispatch();
+        accumulator -= SIM.step;
+        steps++;
+      }
+      if (steps === SIM.maxCatchUp) accumulator = 0; // descarta atraso acumulado
+    }
+
+    // Bandeira consumida pelo áudio: existe fogo aceso agora?
+    let lit = 0;
+    for (const e of world.query(CProp)) {
+      const p = world.need(e, CProp);
+      if (p.kind === 'fogueira' && p.flags.acesa) { lit = 1; break; }
+    }
+    ws.flags['fogueira-acesa'] = lit;
+
+    renderer.render(world, ws, rawDt);
+    ambience.update(rawDt, ws, renderer.camera.view);
+
+    sinceSave += rawDt;
+    if (sinceSave > PERSIST.autosaveSeconds) {
+      sinceSave = 0;
+      void saveWorld(world, ws);
+    }
+
+    if (hudOn) updateHud();
+    requestAnimationFrame(frame);
+  }
+
+  function updateHud(): void {
+    const self = world.first(CCastaway);
+    const needs = self !== null ? world.get(self, CNeeds) : null;
+    const fps = (1000 / Math.max(1, renderer.frameMs)).toFixed(0);
+    const lines = [
+      `dia ${ws.sky.day}  ${formatClock(ws.sky)}  ${ws.sky.season}  ${moonName(ws.sky.moonPhase)}`,
+      `${describe(ws.weather)}   vento ${(ws.weather.wind * 100) | 0}%   maré ${ws.tide.toFixed(2)}`,
+      needs ? `impulso: ${dominantNeed(needs)}   humor ${(world.need(self!, CCastaway).mood * 100) | 0}%` : '',
+      `história: ${ws.activeStory ?? '—'}   entidades ${world.entityCount}   partículas ${renderer.particleCount}`,
+      `${fps} fps   quadro ${renderer.frameMs.toFixed(1)} ms   desenho ${renderer.renderMs.toFixed(1)} ms   qualidade ${renderer.quality}   [i] hud  [p] pausa  [f] tela cheia  [m] som`,
+    ];
+    hudEl.textContent = lines.filter(Boolean).join('\n');
+  }
+
+  window.addEventListener('beforeunload', () => {
+    void saveWorld(world, ws);
+  });
+
+  // Ponte de desenvolvimento: inspecionar o mundo e tirar um quadro sem plugins.
+  (window as { __driftwood?: unknown }).__driftwood = {
+    world, ws, renderer, scheduler, bus,
+    components: { CBrain, CCastaway, CNeeds, CProp, CTransform },
+    /** Foca a câmera no náufrago e devolve o que ele está fazendo. */
+    look(view = 18) {
+      const e = world.first(CCastaway, CTransform);
+      if (e === null) return 'ninguém na ilha';
+      const tr = world.need(e, CTransform);
+      const br = world.need(e, CBrain);
+      renderer.camera.snap({ x: tr.x, y: tr.y + view * 0.25, view, label: 'ele' });
+      renderer.camera.cut({ x: tr.x, y: tr.y + view * 0.25, view, label: 'ele' }, 600);
+      return { entidade: e, x: tr.x, y: tr.y, ação: br.action, alvo: br.targetX };
+    },
+    /** Avança N passos de simulação instantaneamente (para testar dias inteiros). */
+    fastForward(steps: number) {
+      for (let i = 0; i < steps; i++) {
+        bus.setClock(ws.worldSeconds);
+        ctx.dt = SIM.step;
+        scheduler.run(ctx);
+        bus.dispatch();
+      }
+      return { dia: ws.sky.day, hora: formatClock(ws.sky), clima: describe(ws.weather) };
+    },
+    /** Um quadro renderizado agora, em PNG (dataURL). */
+    snapshot(): string {
+      renderer.render(world, ws, 1 / 60);
+      const gl = renderer.gl;
+      const w = gl.drawingBufferWidth;
+      const h = gl.drawingBufferHeight;
+      const px = new Uint8Array(w * h * 4);
+      gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      const out = document.createElement('canvas');
+      out.width = w;
+      out.height = h;
+      const c2d = out.getContext('2d')!;
+      const img = c2d.createImageData(w, h);
+      // WebGL entrega de baixo para cima; inverte as linhas.
+      for (let y = 0; y < h; y++) {
+        const src = (h - 1 - y) * w * 4;
+        img.data.set(px.subarray(src, src + w * 4), y * w * 4);
+      }
+      c2d.putImageData(img, 0, 0);
+      return out.toDataURL('image/png');
+    },
+  };
+
+  bootEl.classList.add('gone');
+  setTimeout(() => bootEl.remove(), 1400);
+  requestAnimationFrame(frame);
+}
+
+boot().catch((err) => {
+  console.error(err);
+  bootEl.textContent = String(err?.message ?? err);
+  bootEl.style.color = '#c98';
+});
