@@ -1,14 +1,6 @@
-import { Scheduler, World } from './core/ecs.ts';
-import { EventBus } from './core/events.ts';
-import { PERSIST, RENDER, SIM } from './core/config.ts';
-import { createWorldState } from './sim/worldState.ts';
+import { PERSIST, SIM } from './core/config.ts';
 import { genesis } from './sim/genesis.ts';
-import {
-  agingSystem, appearSystem, critterSystem, ecologySystem, ephemeralSystem,
-  fireSystem, physicsSystem, timeSystem,
-} from './sim/systems.ts';
-import { actSystem, mindSystem } from './ai/brain.ts';
-import { directorSystem } from './story/director.ts';
+import { createSimulation, stepSimulation } from './simulation.ts';
 import { Renderer } from './render/renderer.ts';
 import { Ambience } from './audio/ambience.ts';
 import { applySave, loadWorld, savedSeed, saveWorld, wipeSave } from './persist/save.ts';
@@ -16,7 +8,6 @@ import { formatClock, moonName } from './sim/calendar.ts';
 import { describe } from './sim/weather.ts';
 import { CBrain, CCastaway, CNeeds, CProp, CTransform } from './sim/components.ts';
 import { dominantNeed } from './ai/needs.ts';
-import type { DriftContext } from './sim/context.ts';
 
 /**
  * Ponto de entrada. Laço de passo fixo para a simulação, quadro livre para o
@@ -52,9 +43,8 @@ async function boot(): Promise<void> {
   const saved = savedIsForAnotherIsland ? null : candidate;
   const seed = forcedSeed ?? (saved ? savedSeed(saved.blob) : Math.floor(Math.random() * 2 ** 31));
 
-  const world = new World(4096);
-  const ws = createWorldState(seed);
-  const bus = new EventBus();
+  const sim = createSimulation(seed);
+  const { world, ws, bus, scheduler } = sim;
 
   if (saved) {
     applySave(saved.blob, world, ws);
@@ -64,25 +54,9 @@ async function boot(): Promise<void> {
     genesis(world, ws);
   }
 
-  const scheduler = new Scheduler<DriftContext>().add(
-    timeSystem,
-    mindSystem,
-    agingSystem,
-    actSystem,
-    critterSystem,
-    physicsSystem,
-    ephemeralSystem,
-    appearSystem,
-    ecologySystem,
-    fireSystem,
-    directorSystem,
-  );
-
   const renderer = new Renderer(canvas, seed);
   const ambience = new Ambience();
   ambience.bind(bus);
-
-  const ctx: DriftContext = { world, ws, bus, dt: SIM.step, elapsed: 0 };
 
   // ── crônica na tela ──
   bus.on('crônica', (ev) => {
@@ -165,11 +139,7 @@ async function boot(): Promise<void> {
       accumulator += rawDt;
       let steps = 0;
       while (accumulator >= SIM.step && steps < SIM.maxCatchUp) {
-        bus.setClock(ws.worldSeconds);
-        ctx.dt = SIM.step;
-        ctx.elapsed += SIM.step;
-        scheduler.run(ctx, profiling);
-        bus.dispatch();
+        stepSimulation(sim, profiling);
         accumulator -= SIM.step;
         steps++;
       }
@@ -231,12 +201,7 @@ async function boot(): Promise<void> {
     },
     /** Avança N passos de simulação instantaneamente (para testar dias inteiros). */
     fastForward(steps: number) {
-      for (let i = 0; i < steps; i++) {
-        bus.setClock(ws.worldSeconds);
-        ctx.dt = SIM.step;
-        scheduler.run(ctx);
-        bus.dispatch();
-      }
+      for (let i = 0; i < steps; i++) stepSimulation(sim);
       return { dia: ws.sky.day, hora: formatClock(ws.sky), clima: describe(ws.weather) };
     },
     /** Um quadro renderizado agora, em PNG (dataURL). */

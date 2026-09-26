@@ -13,7 +13,8 @@ export type AssetLayer =
   | "detail"
   | "shadow"
   | "highlight"
-  | "particle";
+  | "particle"
+  | "light";
 
 
 export interface VisualAsset {

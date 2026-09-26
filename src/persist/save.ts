@@ -11,7 +11,7 @@ import type { WorldState } from '../sim/worldState.ts';
  * crescendo continua crescendo; a cabana continua torta do mesmo jeito.
  */
 
-interface SaveBlob {
+export interface SaveBlob {
   version: number;
   savedAt: number;
   seed: number;
@@ -74,10 +74,11 @@ function backend(): Backend {
   };
 }
 
-export async function saveWorld(world: World, ws: WorldState): Promise<void> {
-  const blob: SaveBlob = {
+/** Fotografia completa do mundo, pronta para virar JSON. Não toca em disco. */
+export function buildSave(world: World, ws: WorldState, savedAt = Date.now()): SaveBlob {
+  return {
     version: PERSIST.version,
-    savedAt: Date.now(),
+    savedAt,
     seed: ws.seed,
     minutes: ws.cal.minutes,
     worldSeconds: ws.worldSeconds,
@@ -102,7 +103,10 @@ export async function saveWorld(world: World, ws: WorldState): Promise<void> {
     },
     ecs: world.serialize(),
   };
-  await backend().write(PERSIST.key, JSON.stringify(blob));
+}
+
+export async function saveWorld(world: World, ws: WorldState): Promise<void> {
+  await backend().write(PERSIST.key, JSON.stringify(buildSave(world, ws)));
 }
 
 export interface LoadedWorld {

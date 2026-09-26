@@ -22,6 +22,14 @@ npm run dev
 
 Abra <http://localhost:5273>.
 
+Checagens (as mesmas que o CI roda a cada push):
+
+```bash
+npm run typecheck
+npm test        # determinismo por semente, save/load e emissão de partículas
+npm run build
+```
+
 Parâmetros úteis de URL:
 
 | Parâmetro | Efeito |
