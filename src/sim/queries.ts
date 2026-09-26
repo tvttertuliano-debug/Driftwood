@@ -98,7 +98,6 @@ export function spawnProp(
   kind: string,
   x: number,
   init: Partial<Prop> = {},
-  brush = kind,
 ): Entity {
   const e = world.create();
   const y = ws.island.surfaceAt(x);
@@ -111,6 +110,6 @@ export function spawnProp(
     seed: init.seed ?? ws.rngAmbient.int(1, 1e6),
     flags: init.flags ?? {},
   });
-  // Visual é adicionado pelo chamador quando quer um pincel diferente do nome.
+  // O visual fica com o chamador: o desenho nem sempre tem o nome do objeto.
   return e;
 }

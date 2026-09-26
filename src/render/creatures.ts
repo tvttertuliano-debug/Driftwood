@@ -18,7 +18,7 @@ function grounded(c: BrushCtx, rx: number, ry: number, strength = 0.6): void {
 
 // ────────────────────────────── bichos da ilha ──────────────────────────────
 
-const crab: Brush = (c) => {
+export const crab: Brush = (c) => {
   const s = 1.1 * c.scale;
   grounded(c, s * 1.2, s * 0.3);
   // Tom de caranguejo de praia: tijolo acinzentado, não vermelho de desenho. E a
@@ -57,7 +57,7 @@ const crab: Brush = (c) => {
   }
 };
 
-const seagull: Brush = (c) => {
+export const seagull: Brush = (c) => {
   const s = 1.6 * c.scale;
   const flap = Math.sin(c.time * 3.4 + c.seed) * 0.6;
   const body = shade(c, [0.95, 0.95, 0.93], 0.9, 0.4);
@@ -68,7 +68,7 @@ const seagull: Brush = (c) => {
   c.p.tri(c.x + c.facing * s * 0.6, c.y + s * 0.08, c.x + c.facing * s * 1.0, c.y, c.x + c.facing * s * 0.6, c.y - s * 0.08, shade(c, [0.95, 0.7, 0.2], 0.9, 0.5), c.opacity);
 };
 
-const parrot: Brush = (c) => {
+export const parrot: Brush = (c) => {
   const s = 1.9 * c.scale;
   const bob = Math.sin(c.time * 2.1 + c.seed) * s * 0.08;
   const body = shade(c, [0.15, 0.62, 0.28], 0.85, 0.4);
@@ -89,7 +89,7 @@ const parrot: Brush = (c) => {
   c.p.taper(c.x, c.y + bob - s * 0.4, c.x - c.facing * s * 1.3, c.y + bob - s * 0.4 - tailA * s, s * 0.3, s * 0.08, body, c.opacity);
 };
 
-const turtle: Brush = (c) => {
+export const turtle: Brush = (c) => {
   const s = 2.6 * c.scale;
   grounded(c, s * 1.3, s * 0.3);
   const shell = shade(c, [0.35, 0.42, 0.28], 0.85, 0.4);
@@ -106,7 +106,7 @@ const turtle: Brush = (c) => {
   }
 };
 
-const fish: Brush = (c) => {
+export const fish: Brush = (c) => {
   const s = 1.2 * c.scale;
   const body = shade(c, [0.6, 0.72, 0.8], 0.9, 0.4);
   const spin = c.time * 4 + c.seed;
@@ -121,7 +121,7 @@ function hull(c: BrushCtx, w: number, h: number, col: RGB): void {
   c.p.tri(c.x - w, c.y + h * 0.5, c.x + w, c.y + h * 0.5, c.x, c.y, col, c.opacity);
 }
 
-const ship: Brush = (c) => {
+export const ship: Brush = (c) => {
   const s = 7 * c.scale;
   const dark = shade(c, [0.22, 0.2, 0.24], 0.4, 0.2);
   const sail = shade(c, [0.92, 0.9, 0.85], 0.9, 0.5);
@@ -131,7 +131,7 @@ const ship: Brush = (c) => {
   c.p.tri(c.x, c.y + s * 2.2, c.x, c.y + s * 0.9, c.x - c.facing * s * 1.1, c.y + s * 1.3, scaleColor(sail, 0.9), c.opacity);
 };
 
-const pirateShip: Brush = (c) => {
+export const pirateShip: Brush = (c) => {
   const s = 8 * c.scale;
   const dark = shade(c, [0.1, 0.09, 0.12], 0.3, 0.1);
   const sail = shade(c, [0.16, 0.14, 0.18], 0.5, 0.2);
@@ -143,7 +143,7 @@ const pirateShip: Brush = (c) => {
   c.p.circle(c.x + c.facing * s * 0.95, c.y + s * 2.4, s * 0.09, [0.85, 0.85, 0.8], c.opacity, 6);
 };
 
-const submarine: Brush = (c) => {
+export const submarine: Brush = (c) => {
   const s = 4 * c.scale;
   const metal = shade(c, [0.2, 0.24, 0.26], 0.5, 0.3);
   c.p.ellipse(c.x, c.y, s * 1.6, s * 0.35, 0, metal, c.opacity, 14);
@@ -151,7 +151,7 @@ const submarine: Brush = (c) => {
   c.p.line(c.x, c.y + s * 1.2, c.x + c.facing * s * 0.5, c.y + s * 1.2, s * 0.14, metal, c.opacity);
 };
 
-const whale: Brush = (c) => {
+export const whale: Brush = (c) => {
   const s = 9 * c.scale;
   const body = shade(c, [0.18, 0.25, 0.34], 0.6, 0.3);
   c.p.ellipse(c.x, c.y, s * 1.6, s * 0.42, -0.06 * c.facing, body, c.opacity, 18);
@@ -164,7 +164,7 @@ const whale: Brush = (c) => {
   }
 };
 
-const ufo: Brush = (c) => {
+export const ufo: Brush = (c) => {
   const s = 4 * c.scale;
   const hover = Math.sin(c.time * 0.9 + c.seed) * s * 0.25;
   const metal = shade(c, [0.6, 0.63, 0.68], 0.9, 0.4);
@@ -180,7 +180,7 @@ const ufo: Brush = (c) => {
   c.p.tri(c.x - s * 0.5, c.y + hover - s * 0.2, c.x + s * 0.5, c.y + hover - s * 0.2, c.x, c.y - s * 6, [0.7, 1, 0.85], c.opacity * 0.1);
 };
 
-const mermaid: Brush = (c) => {
+export const mermaid: Brush = (c) => {
   const s = 3 * c.scale;
   const skin = shade(c, [0.85, 0.72, 0.6], 0.8, 0.3);
   const tail = shade(c, [0.2, 0.55, 0.62], 0.7, 0.4);
@@ -192,7 +192,7 @@ const mermaid: Brush = (c) => {
   c.p.curve(c.x - c.facing * s * 0.3, c.y + s * 1.5, c.x - c.facing * s * 0.9, c.y + s * 1.0, c.x - c.facing * s * 0.7, c.y + s * 0.1, s * 0.35, s * 0.1, hair, c.opacity, 8);
 };
 
-const kraken: Brush = (c) => {
+export const kraken: Brush = (c) => {
   const s = 7 * c.scale;
   const body = shade(c, [0.28, 0.14, 0.3], 0.5, 0.2);
   for (let i = 0; i < 5; i++) {
@@ -203,7 +203,7 @@ const kraken: Brush = (c) => {
   }
 };
 
-const volcano: Brush = (c) => {
+export const volcano: Brush = (c) => {
   const s = 10 * c.scale;
   const rockCol = shade(c, ROCK_DARK, 0.5, 0.4);
   c.p.tri(c.x - s * 1.6, c.y, c.x, c.y + s * 1.4, c.x + s * 1.6, c.y, rockCol, c.opacity);
@@ -215,7 +215,7 @@ const volcano: Brush = (c) => {
   c.p.circle(c.x, c.y + s * 1.4, s * 0.22, [1, 0.5, 0.15], c.opacity * (0.5 + puff * 0.5), 8);
 };
 
-const floatingIsland: Brush = (c) => {
+export const floatingIsland: Brush = (c) => {
   const s = 8 * c.scale;
   const drift = Math.sin(c.time * 0.12 + c.seed) * s * 0.15;
   const rockCol = shade(c, ROCK, 0.7, 0.4);
@@ -228,7 +228,7 @@ const floatingIsland: Brush = (c) => {
   }
 };
 
-const explorer: Brush = (c) => {
+export const explorer: Brush = (c) => {
   const s = 3.4 * c.scale;
   grounded(c, s * 0.7, s * 0.2);
   const coat = shade(c, [0.85, 0.78, 0.55], 0.8, 0.4);
@@ -238,7 +238,7 @@ const explorer: Brush = (c) => {
   c.p.ellipse(c.x, c.y + s * 2.0, s * 0.6, s * 0.16, 0, shade(c, [0.6, 0.5, 0.32], 0.9, 0.3), c.opacity, 10);
 };
 
-const astronaut: Brush = (c) => {
+export const astronaut: Brush = (c) => {
   const s = 3.6 * c.scale;
   grounded(c, s * 0.8, s * 0.22);
   const suit = shade(c, [0.94, 0.94, 0.96], 0.9, 0.5);
@@ -250,7 +250,7 @@ const astronaut: Brush = (c) => {
   c.p.capsule(c.x + s * 0.4, c.y + s * 1.2, c.x + s * 0.7, c.y + s * 0.6, s * 0.14, suit, c.opacity);
 };
 
-const portal: Brush = (c) => {
+export const portal: Brush = (c) => {
   const s = 4 * c.scale;
   const pulse = 0.7 + Math.sin(c.time * 2.2) * 0.3;
   for (let i = 5; i >= 0; i--) {
@@ -260,7 +260,7 @@ const portal: Brush = (c) => {
   }
 };
 
-const robot: Brush = (c) => {
+export const robot: Brush = (c) => {
   const s = 3 * c.scale;
   grounded(c, s * 0.8, s * 0.2);
   const rust = shade(c, [0.5, 0.36, 0.24], 0.7, 0.4);
@@ -272,7 +272,7 @@ const robot: Brush = (c) => {
   c.p.line(c.x, c.y + s * 1.7, c.x, c.y + s * 2.0, s * 0.05, metal, c.opacity);
 };
 
-const dragon: Brush = (c) => {
+export const dragon: Brush = (c) => {
   const s = 9 * c.scale;
   const breath = Math.sin(c.time * 0.35) * 0.5 + 0.5;
   const body = shade(c, [0.24, 0.32, 0.26], 0.5, 0.3);
@@ -289,7 +289,7 @@ const dragon: Brush = (c) => {
   c.p.circle(c.x - c.facing * s * 1.85, c.y + s * 0.62 + breath * s * 0.4, s * 0.13 * breath, [0.8, 0.8, 0.85], c.opacity * 0.3 * breath, 8);
 };
 
-const livingCastle: Brush = (c) => {
+export const livingCastle: Brush = (c) => {
   const s = 4 * c.scale;
   const sandy = shade(c, [0.85, 0.76, 0.58], 0.85, 0.4);
   c.p.quad(c.x - s, c.y, c.x - s * 0.85, c.y + s * 1.1, c.x + s * 0.85, c.y + s * 1.1, c.x + s, c.y, sandy, c.opacity);
@@ -302,27 +302,4 @@ const livingCastle: Brush = (c) => {
     const on = Math.sin(c.time * 0.8 + i * 2.1) > -0.2 ? 1 : 0.2;
     c.p.quad(px - s * 0.08, c.y + s * 0.4, px - s * 0.08, c.y + s * 0.7, px + s * 0.08, c.y + s * 0.7, px + s * 0.08, c.y + s * 0.4, [1, 0.85, 0.45], c.opacity * on, );
   }
-};
-
-export const CREATURE_BRUSHES: Record<string, Brush> = {
-  caranguejo: crab,
-  gaivota: seagull,
-  papagaio: parrot,
-  tartaruga: turtle,
-  peixe: fish,
-  navio: ship,
-  'navio-pirata': pirateShip,
-  submarino: submarine,
-  baleia: whale,
-  ovni: ufo,
-  sereia: mermaid,
-  kraken,
-  vulcão: volcano,
-  'ilha-flutuante': floatingIsland,
-  explorador: explorer,
-  astronauta: astronaut,
-  portal,
-  robô: robot,
-  dragão: dragon,
-  'castelo-vivo': livingCastle,
 };

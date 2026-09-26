@@ -1,4 +1,5 @@
 import { defineComponent } from '../core/ecs.ts';
+import type { AssetId } from '../art/assets/ids.ts';
 
 /** Posição no diorama. x: leste-oeste, y: altura (0 = nível do mar), depth: paralaxe. */
 export interface Transform {
@@ -143,8 +144,8 @@ export const CCritter = defineComponent<Critter>('Critter', () => ({
 
 /** Marca uma entidade como visível e diz por qual pincel procedural desenhá-la. */
 export interface Visual {
-  /** Nome do desenhista registrado em render/sprites. */
-  brush: string;
+  /** Nome do desenho no catálogo visual (`art/assets`). */
+  brush: AssetId;
   /** Variação estável de cor/forma. */
   seed: number;
   /** 0..1, para nascer/desaparecer suavemente. */

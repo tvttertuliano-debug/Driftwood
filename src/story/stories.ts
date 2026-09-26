@@ -5,6 +5,7 @@ import { level } from '../ai/skills.ts';
 import { raise, satisfy } from '../ai/needs.ts';
 import { clamp01 } from '../core/math.ts';
 import type { Story, StoryCtx, StoryStep } from './types.ts';
+import type { AssetId } from '../art/assets/ids.ts';
 
 /**
  * Histórias emergentes. Não são um roteiro: são *possibilidades* com condições.
@@ -31,7 +32,7 @@ function spot(c: StoryCtx, hint: 'praia' | 'cume' | 'meio' | 'enseada' = 'meio')
 }
 
 /** Cria uma obra inacabada. A ação "construir" cuida do resto, no ritmo dele. */
-function startProject(c: StoryCtx, kind: string, brush: string, hint: Parameters<typeof spot>[1] = 'meio'): void {
+function startProject(c: StoryCtx, kind: string, brush: AssetId, hint: Parameters<typeof spot>[1] = 'meio'): void {
   const x = spot(c, hint);
   const e = spawnProp(c.world, c.ws, kind, x, { progress: 0.01, condition: 1 });
   c.world.add(e, CVisual, { brush, seed: c.rng.int(1, 1e6), opacity: 1, shadow: 0.85 });
@@ -48,7 +49,7 @@ const projectDone = (kind: string) => (c: StoryCtx) => {
 interface ProjectOpts {
   id: string;
   kind: string;
-  brush?: string;
+  brush: AssetId;
   weight: number;
   where?: Parameters<typeof spot>[1];
   intro: string;
@@ -69,7 +70,7 @@ function projectStory(o: ProjectOpts): Story {
     requires: (c) => !hasProp(c.world, o.kind) && (o.requires?.(c) ?? true),
     bias: o.bias,
     steps: [
-      { text: o.intro, tone: 'rotina', run: (c) => startProject(c, o.kind, o.brush ?? o.kind, o.where) },
+      { text: o.intro, tone: 'rotina', run: (c) => startProject(c, o.kind, o.brush, o.where) },
       { until: projectDone(o.kind), timeout: 6 * DAY },
       {
         text: o.outro,

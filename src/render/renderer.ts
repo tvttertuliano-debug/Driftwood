@@ -3,8 +3,8 @@ import { Backdrop } from './backdrop.ts';
 import { Camera, type Shot } from './camera.ts';
 import { Particles } from './particles.ts';
 import { Post, type Grade } from './post.ts';
-import { BRUSHES, type BrushCtx } from './brushes.ts';
-import { CREATURE_BRUSHES } from './creatures.ts';
+import type { BrushCtx } from './brushes.ts';
+import { resolveAsset } from '../art/assets/registry.ts';
 import { drawCharacter } from './character.ts';
 import {
   computeLighting, foamColor, foliageColor, lit, shadowColor, waterColor,
@@ -334,7 +334,6 @@ export class Renderer {
       const prop = world.get(e, CProp);
       const critter = world.get(e, CCritter);
 
-      let brushName = vis.brush;
       const extra: Record<string, number> = {};
       if (plant) {
         extra.growth = plant.growth;
@@ -348,14 +347,11 @@ export class Renderer {
         extra.condition = prop.condition;
         for (const [k, v] of Object.entries(prop.flags)) extra[k] = v;
       }
-      if (critter) {
-        brushName = critter.species === 'peixe-caindo' ? 'peixe' : critter.species;
-        extra.bond = critter.bond;
-      }
+      if (critter) extra.bond = critter.bond;
 
-      const brush = BRUSHES[brushName] ?? CREATURE_BRUSHES[brushName] ?? BRUSHES.destroço;
+      const { draw } = resolveAsset(vis.brush);
       const ctx = this.brushCtxFor(world, ws, l, e, extra);
-      list.push({ depth: tr.depth, y: tr.y, draw: () => brush(ctx) });
+      list.push({ depth: tr.depth, y: tr.y, draw: () => draw(ctx) });
     }
 
     // O náufrago entra na mesma fila de profundidade que o resto do cenário.

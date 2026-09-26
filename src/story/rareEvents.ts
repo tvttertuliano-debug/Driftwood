@@ -3,6 +3,7 @@ import { bump, chronicle, flag, setFlag } from '../sim/worldState.ts';
 import { raise, satisfy } from '../ai/needs.ts';
 import { spawnProp } from '../sim/queries.ts';
 import type { StoryCtx } from './types.ts';
+import type { AssetId } from '../art/assets/ids.ts';
 
 /**
  * Eventos raros. As probabilidades são deliberadamente cruéis.
@@ -20,7 +21,7 @@ export interface RareEvent {
   spawn: (c: StoryCtx) => void;
 }
 
-function horizonEntity(c: StoryCtx, brush: string, ttl: number, y = 1.2, scale = 1): void {
+function horizonEntity(c: StoryCtx, brush: AssetId, ttl: number, y = 1.2, scale = 1): void {
   const fromLeft = c.rng.chance(0.5);
   const x = fromLeft ? c.ws.island.shoreLeft - 90 : c.ws.island.shoreRight + 90;
   const e = c.world.create();
@@ -29,7 +30,7 @@ function horizonEntity(c: StoryCtx, brush: string, ttl: number, y = 1.2, scale =
   c.world.add(e, CRare, { event: brush, ttl, phase: 0 });
 }
 
-function nearEntity(c: StoryCtx, brush: string, ttl: number, dy = 0, scale = 1): void {
+function nearEntity(c: StoryCtx, brush: AssetId, ttl: number, dy = 0, scale = 1): void {
   const x = c.ws.island.clampToLand((c.world.get(c.self, CTransform)?.x ?? 0) + c.rng.range(-30, 30));
   const e = c.world.create();
   c.world.add(e, CTransform, { x, y: c.ws.island.surfaceAt(x) + dy, depth: c.rng.range(-0.2, 0.2), facing: c.rng.chance(0.5) ? 1 : -1, scale, rot: 0 });
