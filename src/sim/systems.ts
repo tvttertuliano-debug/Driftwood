@@ -4,7 +4,7 @@ import { WORLD, SIM } from '../core/config.ts';
 import { advance, readSky, temperature } from './calendar.ts';
 import { severity, stepWeather, isDangerous } from './weather.ts';
 import { tideAt } from './tides.ts';
-import { bump, chronicle, flag, setFlag } from './worldState.ts';
+import { bump, flag, narrate, setFlag } from './worldState.ts';
 import {
   CBody, CCastaway, CCritter, CEphemeral, CPlant, CProp, CRare, CTransform, CVisual,
 } from './components.ts';
@@ -29,6 +29,7 @@ export const timeSystem: System<DriftContext> = {
     ws.sky = readSky(ws.cal);
     ws.tide = tideAt(ws.sky);
 
+    const phenomenonBefore = ws.weather.phenomenon;
     const changed = stepWeather(ws.weather, ws.sky, worldDt, ws.rngWeather);
     if (changed) ctx.bus.emit('clima', { kind: changed });
     if (ws.weather.lightning > 0.98) ctx.bus.emit('raio');
@@ -37,10 +38,13 @@ export const timeSystem: System<DriftContext> = {
       ctx.bus.emit('novo-dia', { day: ws.sky.day });
       if (ws.sky.day % SIM.daysPerSeason === 0) {
         ctx.bus.emit('nova-estação', { season: ws.sky.season });
-        chronicle(ws, `Começou o ${ws.sky.season}.`, 'maravilha');
+        narrate(ws, ctx.bus, `Começou o ${ws.sky.season}.`, 'maravilha');
       }
     }
-    if (ws.weather.phenomenon !== 'nenhum' && ws.weather.phenomenonTime <= worldDt) {
+    // Anuncia só na passagem de "nenhum" para um fenômeno. Antes o teste era
+    // `phenomenonTime <= worldDt`, verdadeiro no passo em que ele começa (0) e
+    // também no seguinte (exatamente worldDt): toda aurora saía duas vezes.
+    if (phenomenonBefore === 'nenhum' && ws.weather.phenomenon !== 'nenhum') {
       ctx.bus.emit('fenômeno', { kind: ws.weather.phenomenon });
       const nomes: Record<string, string> = {
         'arco-íris': 'Um arco-íris abriu sobre a água.',
@@ -49,7 +53,7 @@ export const timeSystem: System<DriftContext> = {
         meteoros: 'Riscos de luz atravessaram o céu a noite inteira.',
       };
       const t = nomes[ws.weather.phenomenon];
-      if (t) chronicle(ws, t, 'maravilha');
+      if (t) narrate(ws, ctx.bus, t, 'maravilha');
     }
   },
 };
@@ -149,9 +153,9 @@ export const ecologySystem: System<DriftContext> = {
       if (p.condition <= 0) {
         ctx.bus.emit('ruína', { kind: p.kind, entity: e });
         if (p.kind === 'castelo-de-areia') {
-          chronicle(ws, 'A maré levou o castelo de areia. Era previsível. Ainda assim.', 'perda');
+          narrate(ws, ctx.bus, 'A maré levou o castelo de areia. Era previsível. Ainda assim.', 'perda');
         } else {
-          chronicle(ws, `${p.kind} não resistiu.`, 'perda');
+          narrate(ws, ctx.bus, `${p.kind} não resistiu.`, 'perda');
         }
         ctx.world.destroy(e);
       }
@@ -275,10 +279,10 @@ export const agingSystem: System<DriftContext> = {
       if (wantedOutfit !== who.outfit) {
         who.outfit = wantedOutfit;
         ctx.bus.emit('nova-roupa', { outfit: wantedOutfit });
-        chronicle(ws, 'Ele mudou de roupa. A anterior tinha virado outra coisa.', 'rotina');
+        narrate(ws, ctx.bus, 'Ele mudou de roupa. A anterior tinha virado outra coisa.', 'rotina');
       }
       if (Math.floor(who.ageDays) !== prevDays && Math.floor(who.ageDays) % 30 === 0 && who.ageDays > 1) {
-        chronicle(ws, `${Math.floor(who.ageDays)} dias.`, 'maravilha');
+        narrate(ws, ctx.bus, `${Math.floor(who.ageDays)} dias.`, 'maravilha');
         bump(ws, 'meses');
       }
     }

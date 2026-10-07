@@ -1,5 +1,5 @@
 import { CCritter, CNeeds, CRare, CTransform, CVisual } from '../sim/components.ts';
-import { bump, chronicle, flag, setFlag } from '../sim/worldState.ts';
+import { bump, flag, narrate, setFlag } from '../sim/worldState.ts';
 import { raise, satisfy } from '../ai/needs.ts';
 import { spawnProp } from '../sim/queries.ts';
 import type { StoryCtx } from './types.ts';
@@ -290,7 +290,7 @@ export function rollRareEvents(c: StoryCtx, worldDtSeconds: number): void {
     if (ev.requires && !ev.requires(c)) continue;
     if (!c.ws.rngRare.chance(ev.perDay * days)) continue;
     ev.spawn(c);
-    chronicle(c.ws, ev.line, ev.tone ?? 'raro');
+    narrate(c.ws, c.bus, ev.line, ev.tone ?? 'raro');
     c.bus.emit('evento-raro', { id: ev.id, line: ev.line });
     bump(c.ws, 'eventos-raros');
     return; // No máximo um prodígio por vez. Milagre em série vira rotina.

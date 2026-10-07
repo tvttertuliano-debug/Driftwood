@@ -3,7 +3,7 @@ import { CPlant, CProp, CTransform, CVisual, CCritter } from '../sim/components.
 import {
   currentProject, findProp, mostDamagedProp, nearestFruitingPalm, propX, spawnProp, findCritter,
 } from '../sim/queries.ts';
-import { bump, chronicle, flag, setFlag, stat } from '../sim/worldState.ts';
+import { bump, flag, narrate, setFlag, stat } from '../sim/worldState.ts';
 import { isDangerous, isWet } from '../sim/weather.ts';
 import { desire, raise, satisfy, urgency } from './needs.ts';
 import { crossedMilestone, level, practice } from './skills.ts';
@@ -36,9 +36,8 @@ export interface Action {
 
 const HOUR = 3600;
 
-function say(c: AIContext, text: string, tone: Parameters<typeof chronicle>[2] = 'rotina'): void {
-  chronicle(c.ws, text, tone);
-  c.bus.emit('crônica', { text, tone });
+function say(c: AIContext, text: string, tone: Parameters<typeof narrate>[3] = 'rotina'): void {
+  narrate(c.ws, c.bus, text, tone);
 }
 
 /** Pequeno desastre cômico. O humor vem da física, não da piada escrita. */

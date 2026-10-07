@@ -3,6 +3,7 @@ import { Island } from './island.ts';
 import { newCalendar, readSky, type Calendar, type SkyTime } from './calendar.ts';
 import { newWeather, type Weather } from './weather.ts';
 import { tideAt } from './tides.ts';
+import type { EventBus } from '../core/events.ts';
 
 /**
  * Recurso global do mundo: tudo que não pertence a uma entidade específica.
@@ -107,4 +108,14 @@ export function stat(w: WorldState, name: string): number {
 export function chronicle(w: WorldState, text: string, tone: ChronicleEntry['tone'] = 'rotina'): void {
   w.chronicle.push({ day: w.sky.day, hour: w.sky.hour, text, tone });
   if (w.chronicle.length > 400) w.chronicle.splice(0, w.chronicle.length - 400);
+}
+
+/**
+ * Registra na crônica **e** publica o evento `crônica`, que é o que a tela
+ * mostra. Tudo que acontece durante a simulação passa por aqui; `chronicle`
+ * sozinha fica para o que é escrito antes de alguém estar olhando (o gênese).
+ */
+export function narrate(w: WorldState, bus: EventBus, text: string, tone: ChronicleEntry['tone'] = 'rotina'): void {
+  chronicle(w, text, tone);
+  bus.emit('crônica', { text, tone });
 }
