@@ -3,7 +3,8 @@ import { genesis } from './sim/genesis.ts';
 import { createSimulation, stepSimulation } from './simulation.ts';
 import { Renderer } from './render/renderer.ts';
 import { Ambience } from './audio/ambience.ts';
-import { applySave, loadWorld, savedSeed, saveWorld, wipeSave } from './persist/save.ts';
+import { applySave, loadWorld, savedSeed, saveWorld, setAsideSave, wipeSave } from './persist/save.ts';
+import { parseSeed } from './core/rng.ts';
 import { formatClock, moonName } from './sim/calendar.ts';
 import { describe } from './sim/weather.ts';
 import { CBrain, CCastaway, CNeeds, CProp, CTransform } from './sim/components.ts';
@@ -23,7 +24,10 @@ async function boot(): Promise<void> {
   const params = new URLSearchParams(location.search);
   // `?novo` recomeça o mundo do zero; `?semente=123` reproduz uma ilha exata.
   if (params.has('novo')) await wipeSave();
-  const forcedSeed = params.has('semente') ? Number(params.get('semente')) : null;
+  const forcedSeed = parseSeed(params.get('semente'));
+  if (params.has('semente') && forcedSeed === null) {
+    console.warn(`[driftwood] ?semente=${params.get('semente')} não é um inteiro de 0 a 4294967295; ignorada.`);
+  }
 
   const candidate = params.has('novo') ? null : await loadWorld();
 
@@ -43,16 +47,23 @@ async function boot(): Promise<void> {
   const saved = savedIsForAnotherIsland ? null : candidate;
   const seed = forcedSeed ?? (saved ? savedSeed(saved.blob) : Math.floor(Math.random() * 2 ** 31));
 
-  const sim = createSimulation(seed);
-  const { world, ws, bus, scheduler } = sim;
-
+  let sim = createSimulation(seed);
   if (saved) {
-    applySave(saved.blob, world, ws);
-    // Mundo antigo, mas sem ninguém dentro: recomeça em vez de travar.
-    if (world.first(CCastaway) === null) genesis(world, ws);
+    try {
+      applySave(saved.blob, sim.world, sim.ws);
+      // Mundo antigo, mas sem ninguém dentro: recomeça em vez de travar.
+      if (sim.world.first(CCastaway) === null) genesis(sim.world, sim.ws);
+    } catch (err) {
+      // Um save que passa na validação e mesmo assim quebra ao aplicar travaria
+      // o boot em toda abertura — e no protetor de tela não há como pedir `?novo`.
+      await setAsideSave(saved.raw, `falhou ao aplicar: ${String((err as Error)?.message ?? err)}`);
+      sim = createSimulation(seed);
+      genesis(sim.world, sim.ws);
+    }
   } else {
-    genesis(world, ws);
+    genesis(sim.world, sim.ws);
   }
+  const { world, ws, bus, scheduler } = sim;
 
   const renderer = new Renderer(canvas, seed);
   const ambience = new Ambience();
