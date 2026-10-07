@@ -31,9 +31,20 @@ function copia(src, dest) {
 }
 
 function main() {
+  if (process.platform !== 'win32') {
+    console.error('pack:scr só funciona no Windows: o .scr é o electron.exe renomeado.');
+    process.exit(1);
+  }
+  // Desde o Electron 44 o binário não vem no `npm install`; `require('electron')`
+  // o baixa se faltar e devolve o caminho do executável.
+  try {
+    require('electron');
+  } catch (err) {
+    console.error(String(err && err.message ? err.message : err));
+  }
   if (!fs.existsSync(path.join(distEletron, 'electron.exe'))) {
     console.error('electron.exe não encontrado em node_modules/electron/dist.');
-    console.error('Rode `npm install` e garanta o binário (ver README).');
+    console.error('Rode `npx install-electron` (ver README).');
     process.exit(1);
   }
   if (!fs.existsSync(path.join(distApp, 'index.html'))) {

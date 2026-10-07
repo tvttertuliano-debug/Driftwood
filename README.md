@@ -15,6 +15,8 @@ de áudio. A obra é inspirada no *conceito* do clássico, não em seus ativos.
 
 ## Rodar
 
+Requer **Node 22.12 ou mais novo** (Vite 8 e Vitest 5).
+
 ```bash
 npm install
 npm run dev
@@ -43,11 +45,11 @@ Versão desktop (Electron):
 npm run desktop
 ```
 
-> O Electron baixa um binário de ~190 MB no `postinstall`. Se o `npm install`
-> tiver pulado os scripts, rode `npm approve-scripts electron` e confira que
-> `node_modules/electron/dist/electron.exe` existe. Caso o `install.js` termine
-> sem baixar o binário (deixa `dist/` quase vazio), baixe o zip da release
-> correspondente e extraia sobre `node_modules/electron/dist`.
+> Desde o Electron 44 o binário (~190 MB) **não** é baixado no `npm install`:
+> ele vem na primeira vez que o Electron roda (`npm run desktop`). Para baixar
+> antes, rode `npx install-electron`. Confira que
+> `node_modules/electron/dist/electron.exe` existe; se o download falhar,
+> apague `node_modules/electron`, rode `npm install` e `npx install-electron` de novo.
 >
 > **Estado:** a casca de desktop **abre e roda** (`npm run desktop:dev`). O que
 > ainda não foi exercitado de ponta a ponta é o modo protetor de tela em si
@@ -206,14 +208,14 @@ No navegador vai para `localStorage`; no desktop, para um arquivo JSON em
 
 ## Protetor de tela do Windows
 
-`electron/main.cjs` já entende o contrato do Windows: `/s` executa, `/c` mostra a
-caixa de configuração, `/p` sai em silêncio. Em modo protetor abre uma janela em
-tela cheia por monitor e encerra ao primeiro movimento de mouse ou tecla.
+`electron/main.cjs` entende o contrato do Windows: `/s` executa; `/c`,
+`/c:<janela>` ou nenhum argumento mostram a caixa de configuração; `/p` sai em
+silêncio (sem miniatura).
 
 Em modo protetor, **uma única janela** cobre todos os monitores (a união dos
 retângulos de tela), então é um só mundo em todas as telas — não uma simulação
-independente por monitor. O encerramento sai ao toque de tecla, clique ou ao
-mover o mouse.
+independente por monitor. Encerra ao toque de tecla, clique ou ao mover o mouse,
+e **salva o mundo antes de fechar**. Só roda uma instância por vez.
 
 ### Gerar e instalar o `.scr`
 
