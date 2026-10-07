@@ -215,6 +215,17 @@ async function boot(): Promise<void> {
     void saveWorld(world, ws);
   });
 
+  // A casca de desktop chama isto antes de fechar a janela e espera a promessa:
+  // é o que garante o salvamento quando o protetor de tela encerra.
+  (window as { __driftwoodFlush?: () => Promise<void> }).__driftwoodFlush = () => saveWorld(world, ws);
+
+  // No protetor de tela, um clique sem mover o mouse também encerra. O
+  // Electron não entrega cliques ao processo principal, então a página avisa.
+  const desktop = (window as { driftwood?: { modo?: string; sair?: () => void } }).driftwood;
+  if (desktop?.modo === 'protetor') {
+    window.addEventListener('pointerdown', () => desktop.sair?.());
+  }
+
   // Ponte de desenvolvimento: inspecionar o mundo e tirar um quadro sem plugins.
   (window as { __driftwood?: unknown }).__driftwood = {
     world, ws, renderer, scheduler, bus,
