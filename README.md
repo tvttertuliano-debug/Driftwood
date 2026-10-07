@@ -22,6 +22,14 @@ npm run dev
 
 Abra <http://localhost:5273>.
 
+Checagens (as mesmas que o CI roda a cada push):
+
+```bash
+npm run typecheck
+npm test        # determinismo por semente, save/load e emissão de partículas
+npm run build
+```
+
 Parâmetros úteis de URL:
 
 | Parâmetro | Efeito |
@@ -114,8 +122,10 @@ src/
   story/     histórias emergentes, diretor, eventos raros
   render/    WebGL2: shader de céu/mar, pincel 2D em lote, pincéis procedurais,
              personagem articulado, partículas, câmera, paleta de luz
+  art/       catálogo visual: nomes do que pode ser desenhado e seus pincéis
   audio/     ambiente sintetizado (WebAudio)
   persist/   serialização do mundo
+  simulation.ts  monta a simulação sem navegador (página, desktop e testes)
 electron/    casca de desktop e protetor de tela do Windows
 ```
 
@@ -153,8 +163,17 @@ obra ("ele resolveu construir X"), use o molde `projectStory`.
 **Um prodígio novo** — `src/story/rareEvents.ts`, com `perDay` (frequência
 esperada por dia de mundo) e uma condição dura em `requires`.
 
-**Um desenho novo** — `src/render/brushes.ts` ou `creatures.ts`. Um pincel é uma
-função pura que recebe posição, semente, luz e tempo, e emite triângulos.
+**Um desenho novo** — três lugares, e o compilador cobra os três:
+
+1. o pincel em `src/render/brushes.ts` ou `creatures.ts` — uma função pura que
+   recebe posição, semente, luz e tempo, e emite triângulos;
+2. o nome em `src/art/assets/ids.ts` — é o que a simulação usa em `CVisual.brush`,
+   sem saber como aquilo é desenhado;
+3. a entrada em `src/art/assets/registry.ts`, ligando o nome ao pincel, com
+   categoria, animação e descrição.
+
+Um nome escrito errado em qualquer ponto da simulação é erro de compilação. Um
+nome desconhecido vindo de um save antigo é desenhado como destroço, com aviso.
 
 ---
 

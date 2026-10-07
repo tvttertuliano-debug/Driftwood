@@ -105,7 +105,7 @@ function palmFrond(
   }
 }
 
-const palm: Brush = (c) => {
+export const palm: Brush = (c) => {
   const growth = clamp01(c.extra.growth ?? 1);
   const health = clamp01(c.extra.health ?? 1);
   const h = (c.extra.maxHeight ?? 22) * lerp(0.12, 1, growth) * c.scale;
@@ -216,7 +216,7 @@ function leafyClump(
   }
 }
 
-const bush: Brush = (c) => {
+export const bush: Brush = (c) => {
   const growth = clamp01(c.extra.growth ?? 1);
   const s = (c.extra.maxHeight ?? 8) * 0.4 * lerp(0.2, 1, growth) * c.scale;
   ground(c, s * 1.2, s * 0.24, growth);
@@ -286,7 +286,7 @@ function plankFrame(c: BrushCtx, w: number, h: number, planks: number, progress:
   }
 }
 
-const hut: Brush = (c) => {
+export const hut: Brush = (c) => {
   const prog = clamp01(c.extra.progress ?? 1);
   const cond = clamp01(c.extra.condition ?? 1);
   const w = 13 * c.scale;
@@ -320,7 +320,7 @@ const hut: Brush = (c) => {
   }
 };
 
-const campfire: Brush = (c) => {
+export const campfire: Brush = (c) => {
   const s = 3.2 * c.scale;
   const lightIt = (c.extra.acesa ?? 0) > 0.5;
   ground(c, s * 1.4, s * 0.4);
@@ -352,7 +352,7 @@ const campfire: Brush = (c) => {
   c.p.ellipse(c.x, c.y + s * 0.1, s * 3.4, s * 0.9, 0, [1, 0.6, 0.25], c.opacity * 0.14, 16);
 };
 
-const raft: Brush = (c) => {
+export const raft: Brush = (c) => {
   const prog = clamp01(c.extra.progress ?? 1);
   const w = 11 * c.scale;
   const logs = 5;
@@ -371,7 +371,7 @@ const raft: Brush = (c) => {
   }
 };
 
-const flotsam: Brush = (c) => {
+export const flotsam: Brush = (c) => {
   const s = 3 * c.scale * rr(c.seed, 0, 0.7, 1.4);
   ground(c, s, s * 0.25);
   const col = lit(scaleColor(WOOD, rr(c.seed, 1, 0.55, 0.9)), c.l, 0.6, 0.2, c.depth);
@@ -385,7 +385,7 @@ const flotsam: Brush = (c) => {
   }
 };
 
-const sculpture: Brush = (c) => {
+export const sculpture: Brush = (c) => {
   const h = 6 * c.scale * rr(c.seed, 0, 0.8, 1.6);
   ground(c, h * 0.45, h * 0.14);
   const stone = lit(ROCK, c.l, 0.8, 0.5, c.depth);
@@ -401,7 +401,7 @@ const sculpture: Brush = (c) => {
   }
 };
 
-const sandcastle: Brush = (c) => {
+export const sandcastle: Brush = (c) => {
   const cond = clamp01(c.extra.condition ?? 1);
   const s = 3.4 * c.scale * cond;
   ground(c, s * 1.2, s * 0.3);
@@ -414,7 +414,7 @@ const sandcastle: Brush = (c) => {
   }
 };
 
-const hammock: Brush = (c) => {
+export const hammock: Brush = (c) => {
   const w = 12 * c.scale;
   const rope = lit([0.78, 0.7, 0.5], c.l, 0.7, 0.2, c.depth);
   const dip = w * 0.22 + Math.sin(c.time * 0.6) * w * 0.02;
@@ -426,7 +426,7 @@ const hammock: Brush = (c) => {
   }
 };
 
-const windmill: Brush = (c) => {
+export const windmill: Brush = (c) => {
   const prog = clamp01(c.extra.progress ?? 1);
   const h = 16 * c.scale * lerp(0.3, 1, prog);
   ground(c, h * 0.3, h * 0.08);
@@ -447,7 +447,7 @@ const windmill: Brush = (c) => {
   c.p.circle(c.x, hubY, h * 0.05, lit(ROCK_DARK, c.l, 0.6, 0, c.depth), c.opacity, 10);
 };
 
-const lighthouse: Brush = (c) => {
+export const lighthouse: Brush = (c) => {
   const prog = clamp01(c.extra.progress ?? 1);
   const h = 26 * c.scale * lerp(0.25, 1, prog);
   const w = h * 0.2;
@@ -480,7 +480,7 @@ const lighthouse: Brush = (c) => {
   }
 };
 
-const telescope: Brush = (c) => {
+export const telescope: Brush = (c) => {
   const s = 5 * c.scale * clamp01(c.extra.progress ?? 1);
   ground(c, s, s * 0.3);
   const metal = lit([0.45, 0.47, 0.52], c.l, 0.7, 0.5, c.depth);
@@ -490,7 +490,7 @@ const telescope: Brush = (c) => {
   c.p.taper(c.x - Math.cos(a) * s * 0.5, c.y + s * 0.9 - Math.sin(a) * s * 0.5, c.x + Math.cos(a) * s * 1.1, c.y + s * 0.9 + Math.sin(a) * s * 1.1, s * 0.3, s * 0.42, metal, c.opacity);
 };
 
-const observatory: Brush = (c) => {
+export const observatory: Brush = (c) => {
   const s = 9 * c.scale;
   const stone = lit(ROCK, c.l, 0.75, 0.4, c.depth);
   const stones = 7;
@@ -503,7 +503,7 @@ const observatory: Brush = (c) => {
   }
 };
 
-const bridge: Brush = (c) => {
+export const bridge: Brush = (c) => {
   const w = 16 * c.scale;
   const wood = lit(WOOD, c.l, 0.7, 0.3, c.depth);
   const planks = 9;
@@ -516,7 +516,7 @@ const bridge: Brush = (c) => {
   c.p.curve(c.x - w * 0.5, c.y + 0.4, c.x, c.y + w * 0.12, c.x + w * 0.5, c.y + 0.4, w * 0.03, w * 0.03, scaleColor(wood, 0.8), c.opacity, 8);
 };
 
-const oven: Brush = (c) => {
+export const oven: Brush = (c) => {
   const s = 5 * c.scale * clamp01(c.extra.progress ?? 1);
   ground(c, s * 1.2, s * 0.3);
   const clay = lit([0.55, 0.36, 0.26], c.l, 0.75, 0.4, c.depth);
@@ -524,7 +524,7 @@ const oven: Brush = (c) => {
   c.p.ellipse(c.x, c.y + s * 0.35, s * 0.35, s * 0.3, 0, [0.1, 0.06, 0.05], c.opacity, 10);
 };
 
-const chair: Brush = (c) => {
+export const chair: Brush = (c) => {
   const s = 4 * c.scale;
   ground(c, s * 0.8, s * 0.2);
   const wood = lit(WOOD_LIGHT, c.l, 0.6, 0.3, c.depth);
@@ -534,7 +534,7 @@ const chair: Brush = (c) => {
   c.p.line(c.x - s * 0.55, c.y + s * 0.5, c.x - s * 0.65, c.y + s * 1.2, s * 0.12, wood, c.opacity);
 };
 
-const garden: Brush = (c) => {
+export const garden: Brush = (c) => {
   const w = 10 * c.scale;
   const wood = lit(scaleColor(WOOD, 0.8), c.l, 0.5, 0.2, c.depth);
   for (let i = 0; i < 7; i++) {
@@ -548,7 +548,7 @@ const garden: Brush = (c) => {
   }
 };
 
-const drum: Brush = (c) => {
+export const drum: Brush = (c) => {
   const s = 3.2 * c.scale;
   ground(c, s, s * 0.25);
   const wood = lit(WOOD, c.l, 0.6, 0.3, c.depth);
@@ -556,7 +556,7 @@ const drum: Brush = (c) => {
   c.p.ellipse(c.x, c.y + s, s * 0.46, s * 0.16, 0, lit([0.8, 0.72, 0.6], c.l, 0.95, 0.2, c.depth), c.opacity, 12);
 };
 
-const shellChime: Brush = (c) => {
+export const shellChime: Brush = (c) => {
   const s = 5 * c.scale;
   const rope = lit([0.75, 0.68, 0.5], c.l, 0.6, 0, c.depth);
   c.p.line(c.x - s * 0.6, c.y + s, c.x + s * 0.6, c.y + s, s * 0.04, rope, c.opacity);
@@ -572,7 +572,7 @@ const shellChime: Brush = (c) => {
   }
 };
 
-const stairs: Brush = (c) => {
+export const stairs: Brush = (c) => {
   const s = 8 * c.scale;
   const wood = lit(WOOD, c.l, 0.6, 0.4, c.depth);
   for (let i = 0; i < 5; i++) {
@@ -581,7 +581,7 @@ const stairs: Brush = (c) => {
   }
 };
 
-const easel: Brush = (c) => {
+export const easel: Brush = (c) => {
   const s = 7 * c.scale;
   ground(c, s * 0.5, s * 0.14);
   const wood = lit(WOOD_LIGHT, c.l, 0.55, 0.3, c.depth);
@@ -593,7 +593,7 @@ const easel: Brush = (c) => {
   c.p.line(c.x - s * 0.24, c.y + s * 0.55, c.x + s * 0.24, c.y + s * 0.55, s * 0.08, lit([0.25, 0.5, 0.7], c.l, 0.8, 0, c.depth), c.opacity);
 };
 
-const bottle: Brush = (c) => {
+export const bottle: Brush = (c) => {
   const s = 1.8 * c.scale;
   ground(c, s * 0.8, s * 0.2);
   const glass = lit([0.4, 0.62, 0.45], c.l, 0.9, 0.6, c.depth);
@@ -601,7 +601,7 @@ const bottle: Brush = (c) => {
   c.p.line(c.x + s * 0.2, c.y + s * 0.75, c.x + s * 0.55, c.y + s * 0.95, s * 0.18, glass, c.opacity * 0.85);
 };
 
-const chest: Brush = (c) => {
+export const chest: Brush = (c) => {
   const s = 3.4 * c.scale;
   ground(c, s, s * 0.25);
   const wood = lit(scaleColor(WOOD, 0.85), c.l, 0.6, 0.4, c.depth);
@@ -611,14 +611,14 @@ const chest: Brush = (c) => {
   c.p.line(c.x - s * 0.6, c.y + s * 0.5, c.x + s * 0.6, c.y + s * 0.5, s * 0.08, metal, c.opacity);
 };
 
-const tool: Brush = (c) => {
+export const tool: Brush = (c) => {
   const s = 6 * c.scale * clamp01(c.extra.progress ?? 1);
   const wood = lit(WOOD_LIGHT, c.l, 0.6, 0.4, c.depth);
   c.p.taper(c.x, c.y, c.x + s * 0.35, c.y + s, s * 0.09, s * 0.04, wood, c.opacity);
   c.p.line(c.x + s * 0.3, c.y + s * 0.9, c.x + s * 0.55, c.y + s * 0.75, s * 0.03, lit([0.8, 0.78, 0.6], c.l, 0.9, 0.3, c.depth), c.opacity);
 };
 
-const rock: Brush = (c) => {
+export const rock: Brush = (c) => {
   const s = 4 * c.scale * rr(c.seed, 0, 0.6, 2.2);
   ground(c, s * 1.15, s * 0.26);
 
@@ -671,32 +671,5 @@ const rock: Brush = (c) => {
   }
 };
 
-export const BRUSHES: Record<string, Brush> = {
-  planta: (c) => ((c.extra.species ?? 0) > 0.5 ? bush(c) : palm(c)),
-  palmeira: palm,
-  arbusto: bush,
-  cabana: hut,
-  fogueira: campfire,
-  jangada: raft,
-  'destroço-jangada': raft,
-  destroço: flotsam,
-  escultura: sculpture,
-  castelo: sandcastle,
-  rede: hammock,
-  moinho: windmill,
-  farol: lighthouse,
-  telescópio: telescope,
-  observatório: observatory,
-  ponte: bridge,
-  forno: oven,
-  cadeira: chair,
-  horta: garden,
-  tambor: drum,
-  sino: shellChime,
-  escada: stairs,
-  cavalete: easel,
-  garrafa: bottle,
-  baú: chest,
-  ferramenta: tool,
-  rocha: rock,
-};
+/** Uma planta viva decide o próprio desenho pela espécie que o ecossistema sorteou. */
+export const plant: Brush = (c) => ((c.extra.species ?? 0) > 0.5 ? bush(c) : palm(c));
