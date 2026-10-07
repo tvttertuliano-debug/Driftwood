@@ -1,5 +1,8 @@
 # Auditoria do Driftwood
 
+> **Há uma auditoria mais recente:** [docs/auditoria/AUDITORIA-2026-10-07.md](docs/auditoria/AUDITORIA-2026-10-07.md).
+> Este documento é o registro de 29/07/2026 e está desatualizado em vários pontos.
+
 Levantamento feito em **29/07/2026** sobre o código em `C:\Nova pasta\driftwood`,
 sem nenhuma alteração no projeto. Os únicos arquivos criados foram este documento
 e as três imagens em `docs/auditoria/`.
