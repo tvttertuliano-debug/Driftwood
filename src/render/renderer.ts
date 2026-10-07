@@ -10,7 +10,7 @@ import {
   computeLighting, foamColor, foliageColor, lit, shadowColor, waterColor,
   ROCK, ROCK_DARK, SAND, SAND_WET, type Lighting,
 } from './palette.ts';
-import { createContext } from './gl.ts';
+import { configureContext, createContext } from './gl.ts';
 import { QUALITY, RENDER, WORLD, type QualityTier } from '../core/config.ts';
 import { clamp, clamp01, lerp, mixColor, scaleColor, smoothstep, type RGB } from '../core/math.ts';
 import { fbm1, Rng } from '../core/rng.ts';
@@ -64,6 +64,20 @@ export class Renderer {
     this.post = new Post(this.gl);
     this.camera = new Camera(seed);
     this.ridgeSeed = seed ^ 0x7ea1;
+  }
+
+  /**
+   * Recria tudo que mora na GPU depois de uma perda de contexto. O objeto `gl`
+   * continua o mesmo, mas programas, buffers, texturas e o estado global foram
+   * descartados pelo driver (atualização de driver, suspensão, troca de GPU).
+   * Sem isto, um protetor de tela aberto por semanas ficava preto para sempre.
+   */
+  restoreGpu(dpr: number): void {
+    configureContext(this.gl);
+    this.painter = new Painter(this.gl);
+    this.backdrop = new Backdrop(this.gl);
+    this.post = new Post(this.gl);
+    this.resize(dpr);
   }
 
   resize(dpr: number): void {

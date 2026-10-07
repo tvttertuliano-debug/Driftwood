@@ -11,10 +11,15 @@ export function createContext(canvas: HTMLCanvasElement): WebGL2RenderingContext
     desynchronized: true,
   });
   if (!gl) throw new Error('WebGL2 não disponível nesta máquina.');
+  configureContext(gl);
+  return gl;
+}
+
+/** Estado global de GL. Some junto com o contexto; refeito ao restaurá-lo. */
+export function configureContext(gl: WebGL2RenderingContext): void {
   gl.disable(gl.DEPTH_TEST);
   gl.enable(gl.BLEND);
   gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-  return gl;
 }
 
 function compile(gl: WebGL2RenderingContext, type: number, src: string, label: string): WebGLShader {

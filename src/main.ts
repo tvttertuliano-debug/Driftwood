@@ -102,6 +102,25 @@ async function boot(): Promise<void> {
   new ResizeObserver(() => renderer.resize(dpr())).observe(canvas);
   window.addEventListener('resize', () => renderer.resize(dpr()));
 
+  // Perda de contexto WebGL: a simulação segue; o desenho pausa e, quando o
+  // navegador devolve o contexto, tudo que mora na GPU é recriado.
+  // `preventDefault` é o que pede ao navegador para devolvê-lo.
+  let gpuLost = false;
+  canvas.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    gpuLost = true;
+    console.warn('[driftwood] contexto WebGL perdido; aguardando restauração.');
+  });
+  canvas.addEventListener('webglcontextrestored', () => {
+    try {
+      renderer.restoreGpu(dpr());
+      gpuLost = false;
+      console.warn('[driftwood] contexto WebGL restaurado.');
+    } catch (err) {
+      console.error('[driftwood] falha ao restaurar o contexto WebGL', err);
+    }
+  });
+
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) ambience.suspend();
     else {
@@ -165,7 +184,7 @@ async function boot(): Promise<void> {
     }
     ws.flags['fogueira-acesa'] = lit;
 
-    renderer.render(world, ws, rawDt);
+    if (!gpuLost) renderer.render(world, ws, rawDt);
     ambience.update(rawDt, ws, renderer.camera.view);
 
     sinceSave += rawDt;
