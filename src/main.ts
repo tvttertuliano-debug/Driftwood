@@ -205,7 +205,7 @@ async function boot(): Promise<void> {
       `dia ${ws.sky.day}  ${formatClock(ws.sky)}  ${ws.sky.season}  ${moonName(ws.sky.moonPhase)}`,
       `${describe(ws.weather)}   vento ${(ws.weather.wind * 100) | 0}%   maré ${ws.tide.toFixed(2)}`,
       needs ? `impulso: ${dominantNeed(needs)}   humor ${(world.need(self!, CCastaway).mood * 100) | 0}%` : '',
-      `história: ${ws.activeStory ?? '—'}   entidades ${world.entityCount}   partículas ${renderer.particleCount}`,
+      `obra: ${ws.activeStory ?? '—'}   acontecimento: ${ws.sideStory ?? '—'}   entidades ${world.entityCount}   partículas ${renderer.particleCount}`,
       `${fps} fps   quadro ${renderer.frameMs.toFixed(1)} ms   desenho ${renderer.renderMs.toFixed(1)} ms   qualidade ${renderer.quality}   [i] hud  [p] pausa  [f] tela cheia  [m] som`,
     ];
     hudEl.textContent = lines.filter(Boolean).join('\n');

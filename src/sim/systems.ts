@@ -71,8 +71,10 @@ export const physicsSystem: System<DriftContext> = {
       const b = ctx.world.need(e, CBody);
       const tr = ctx.world.need(e, CTransform);
       if (b.asleep) {
-        // Corpos adormecidos só acordam se a água subir até eles.
-        if (b.buoyant && Math.abs(tr.y - waterY) > 0.9) b.asleep = false;
+        // Corpos adormecidos só acordam se a água subir até eles. (A condição
+        // estava invertida — acordava quando a água estava *longe* —, e um corpo
+        // boiante em terra nunca dormia.)
+        if (b.buoyant && tr.y <= waterY + 0.6) b.asleep = false;
         else continue;
       }
 
