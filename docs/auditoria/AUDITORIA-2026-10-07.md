@@ -28,6 +28,38 @@ o script headless e uma nota no topo de `AUDITORIA.md`.
 
 ---
 
+## Situação depois das correções (mesmo dia)
+
+As correções estão na branch `claude/awesome-volta-upir04`, que inclui também a
+branch `claude/sleepy-pasteur-ki45mo` (build consertado, Vitest e CI). As
+seções abaixo mantêm o achado original.
+
+| # | Situação | Como foi verificado |
+| --- | --- | --- |
+| A1 | ✅ corrigido (na branch de testes) | `npm run build` passa |
+| A2 | ✅ obras podem ser refeitas depois de destruídas | `test/obras.test.ts`; 360 dias: fogueira presente em todas as amostras |
+| A3 | ✅ `narrate()` registra e emite | `test/chronicle.test.ts`; 360 dias: 0 de 1 059 linhas fora da tela |
+| A4 | ✅ Electron 44.7, Vite 8, Vitest 5 | `npm audit`: 0 vulnerabilidades |
+| M1 | ✅ anúncio na passagem de "nenhum" para um fenômeno | 360 dias: 34 fenômenos, 34 anúncios |
+| M2 | ✅ `parseSeed` | `test/save-robustez.test.ts` |
+| M3 | ✅ teto de 24 esculturas e 40 plantas | `test/longo.test.ts`; 360 dias: ~100 entidades estáveis (antes 256 e subindo) |
+| M4 | ✅ desfecho sorteado uma vez; sem `CBody` depois; consertar ignora destroços e rochedos | `test/longo.test.ts` |
+| M5 | ✅ `Renderer.restoreGpu` | Chromium headless com `WEBGL_lose_context` |
+| M6 | ✅ fechar espera `__driftwoodFlush` | Electron em Linux (Xvfb + Playwright) |
+| M7 | ✅ `electron/args.cjs` + instância única + clique encerra | `test/electron-args.test.ts` e Electron em Linux |
+| M8 | ✅ save inutilizável é copiado para `….rejeitado`; falha ao aplicar recomeça | `test/save-robustez.test.ts` |
+| M9 | ✅ Vitest + CI (na branch de testes) | — |
+| B1 | ✅ `path.relative` | Electron em Linux: 403 |
+| B3 | ✅ condição de despertar corrigida | — |
+| B6 | ✅ HUD mostra as duas vagas | — |
+| D4, D5, D6, B2, B4, B5, B7, B8 e documentação | em aberto | — |
+
+**Não verificado no Windows:** `/s` em tela cheia real, o diálogo `/c`, e o
+`.scr` empacotado com Electron 44. O roteiro de ponta a ponta rodou no Electron
+44 em Linux.
+
+---
+
 ## Resumo
 
 | # | Severidade | Achado | Verificado |
