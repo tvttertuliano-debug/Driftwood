@@ -240,8 +240,12 @@ const ARCOS: Story[] = [
         wait: 3 * HOUR,
       },
       {
+        // O desfecho é sorteado uma vez só, no `run` (que roda antes do texto),
+        // e o texto lê o resultado. Antes eram dois sorteios: a crônica dizia que
+        // a jangada afundou e ela continuava boiando, levada pelo vento, até
+        // mais de mil unidades da ilha — ainda na lista de consertos.
         text: (c) =>
-          c.rng.chance(0.6)
+          flag(c.ws, 'jangada-afundou') > 0
             ? 'A jangada afundou a cinquenta metros da praia. Ele voltou nadando, sem pressa.'
             : 'A corrente virou e devolveu a jangada à mesma praia. Ele riu. Acho que riu.',
         tone: 'perda',
@@ -253,11 +257,25 @@ const ARCOS: Story[] = [
           }
           setFlag(c.ws, 'jangada-pronta', 0);
           bump(c.ws, 'tentativas-de-fuga');
+          const sank = c.rng.chance(0.6);
+          setFlag(c.ws, 'jangada-afundou', sank ? 1 : 0);
           const e = findProp(c.world, 'jangada');
-          if (e) {
-            const p = c.world.need(e, CProp);
-            p.condition = 0.25;
-            p.kind = 'destroço-jangada';
+          if (!e) return;
+          if (sank) {
+            c.world.destroy(e);
+            return;
+          }
+          c.world.remove(e, CBody);
+          const p = c.world.need(e, CProp);
+          p.condition = 0.25;
+          p.kind = 'destroço-jangada';
+          const tr = c.world.get(e, CTransform);
+          if (tr) {
+            const isl = c.ws.island;
+            const shore = Math.abs(tr.x - isl.shoreLeft) < Math.abs(tr.x - isl.shoreRight) ? isl.shoreLeft + 3 : isl.shoreRight - 3;
+            tr.x = shore;
+            tr.y = isl.surfaceAt(shore);
+            tr.rot = 0;
           }
         },
       },

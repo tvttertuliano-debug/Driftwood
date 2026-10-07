@@ -8,6 +8,7 @@ import { bump, flag, narrate, setFlag } from './worldState.ts';
 import {
   CBody, CCastaway, CCritter, CEphemeral, CPlant, CProp, CRare, CTransform, CVisual,
 } from './components.ts';
+import { DOES_NOT_WEAR } from './queries.ts';
 import type { DriftContext } from './context.ts';
 
 /**
@@ -147,7 +148,7 @@ export const ecologySystem: System<DriftContext> = {
     // Desgaste das construções: sal, vento e tempo. O mundo cobra manutenção.
     for (const e of ctx.world.query(CProp)) {
       const p = ctx.world.need(e, CProp);
-      if (p.progress < 1) continue;
+      if (p.progress < 1 || DOES_NOT_WEAR.has(p.kind)) continue;
       const wear = days * (0.006 + sev * 0.09) * (p.kind === 'castelo-de-areia' ? 12 : 1);
       p.condition = clamp01(p.condition - wear);
       if (p.condition <= 0) {
