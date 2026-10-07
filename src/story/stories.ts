@@ -59,23 +59,34 @@ interface ProjectOpts {
   after?: (c: StoryCtx) => void;
 }
 
+/** Bandeira de "já construiu isto alguma vez": muda o texto quando é uma reconstrução. */
+const rebuilt = (kind: string) => `já-construiu:${kind}`;
+
 /** Molde de história "ele decidiu construir X". Muitas obras, pouca repetição de código. */
 function projectStory(o: ProjectOpts): Story {
   return {
     id: o.id,
     slot: 'obra',
     weight: o.weight,
-    once: true,
+    // Sem `once`: o desgaste destrói as obras, e uma obra que só pudesse existir
+    // uma vez na vida do mundo deixava a ilha vazia em poucos meses — a fogueira
+    // sumia antes do dia 60 e com ela fogo, cozinha e brasas, para sempre. Agora
+    // o que vale é "não existe agora, nem pronta nem em obra".
     cooldown: 2 * DAY,
-    requires: (c) => !hasProp(c.world, o.kind) && (o.requires?.(c) ?? true),
+    requires: (c) => findProp(c.world, o.kind, false) === null && (o.requires?.(c) ?? true),
     bias: o.bias,
     steps: [
-      { text: o.intro, tone: 'rotina', run: (c) => startProject(c, o.kind, o.brush, o.where) },
+      {
+        text: (c) => (flag(c.ws, rebuilt(o.kind)) > 0 ? `Do que havia antes não sobrou nada. ${o.intro}` : o.intro),
+        tone: 'rotina',
+        run: (c) => startProject(c, o.kind, o.brush, o.where),
+      },
       { until: projectDone(o.kind), timeout: 6 * DAY },
       {
         text: o.outro,
         tone: 'conquista',
         run: (c) => {
+          setFlag(c.ws, rebuilt(o.kind));
           o.after?.(c);
           const n = needsOf(c);
           if (n) {
