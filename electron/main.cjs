@@ -13,7 +13,7 @@
  * é o contrato do Windows, e o mundo é salvo antes de sair.
  */
 
-const { app, BrowserWindow, ipcMain, screen, dialog, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, dialog, protocol, net, session } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const { pathToFileURL } = require('node:url');
@@ -118,7 +118,21 @@ function baseWebPreferences() {
   };
 }
 
+/**
+ * A página só mostra a ilha: não navega para lugar nenhum e não abre janelas.
+ * Se algum dia aparecer um link ou um redirecionamento, ele morre aqui em vez
+ * de carregar conteúdo de fora numa janela com acesso à ponte do preload.
+ */
+function lockDown(win) {
+  const allowed = new URL(isDev ? DEV_SERVER : APP_URL).origin;
+  win.webContents.on('will-navigate', (e, url) => {
+    if (new URL(url).origin !== allowed) e.preventDefault();
+  });
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+}
+
 function load(win) {
+  lockDown(win);
   win.once('ready-to-show', () => win.show());
   win.loadURL(isDev ? DEV_SERVER : APP_URL);
   saveBeforeClosing(win);
@@ -223,6 +237,10 @@ app.on('second-instance', () => {
 
 app.whenReady().then(() => {
   if (!isPrimary) return;
+  // A única permissão que a página usa é tela cheia (tecla f).
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+    callback(permission === 'fullscreen');
+  });
   // Serve o dist/ pelo esquema app:// (usado quando não é modo dev).
   const distDir = path.join(__dirname, '..', 'dist');
   protocol.handle('app', (request) => {
