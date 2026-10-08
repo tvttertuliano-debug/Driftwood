@@ -29,3 +29,20 @@ Errado:
 drawPalmTree()
 drawRock()
 drawFire()
+```
+
+Certo — é o que o código faz hoje (`src/art/assets/`):
+
+```ts
+// a simulação só diz QUAL asset a entidade é (um nome de ids.ts, checado em compilação)
+world.add(e, CVisual, { brush: 'planta', seed, opacity: 1, shadow: 0.7 });
+
+// o renderer não conhece palmeiras: resolve o nome no catálogo e chama o pincel
+const { draw } = resolveAsset(vis.brush);
+draw(ctx);
+```
+
+> Nota (auditoria de 07/10/2026): o arquivo terminava no meio do exemplo
+> "Errado", com o bloco de código aberto. O exemplo "Certo" acima descreve o
+> catálogo que existe no código; as seções seguintes do documento original
+> não foram escritas e continuam por fazer.

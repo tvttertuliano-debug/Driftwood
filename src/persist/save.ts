@@ -3,7 +3,7 @@ import { World, type SerializedWorld } from '../core/ecs.ts';
 import { Island } from '../sim/island.ts';
 import { readSky } from '../sim/calendar.ts';
 import { tideAt } from '../sim/tides.ts';
-import { Rng } from '../core/rng.ts';
+import { parseSeed, Rng } from '../core/rng.ts';
 import type { WorldState } from '../sim/worldState.ts';
 
 /**
@@ -11,12 +11,14 @@ import type { WorldState } from '../sim/worldState.ts';
  * crescendo continua crescendo; a cabana continua torta do mesmo jeito.
  */
 
-interface SaveBlob {
+export interface SaveBlob {
   version: number;
   savedAt: number;
   seed: number;
   minutes: number;
   worldSeconds: number;
+  /** Ausente em saves antigos. */
+  steps?: number;
   weather: unknown;
   flags: Record<string, number>;
   stats: Record<string, number>;
@@ -74,13 +76,15 @@ function backend(): Backend {
   };
 }
 
-export async function saveWorld(world: World, ws: WorldState): Promise<void> {
-  const blob: SaveBlob = {
+/** Fotografia completa do mundo, pronta para virar JSON. Não toca em disco. */
+export function buildSave(world: World, ws: WorldState, savedAt = Date.now()): SaveBlob {
+  return {
     version: PERSIST.version,
-    savedAt: Date.now(),
+    savedAt,
     seed: ws.seed,
     minutes: ws.cal.minutes,
     worldSeconds: ws.worldSeconds,
+    steps: ws.steps,
     weather: { ...ws.weather },
     flags: ws.flags,
     stats: ws.stats,
@@ -102,7 +106,10 @@ export async function saveWorld(world: World, ws: WorldState): Promise<void> {
     },
     ecs: world.serialize(),
   };
-  await backend().write(PERSIST.key, JSON.stringify(blob));
+}
+
+export async function saveWorld(world: World, ws: WorldState): Promise<void> {
+  await backend().write(PERSIST.key, JSON.stringify(buildSave(world, ws)));
 }
 
 export interface LoadedWorld {
@@ -110,23 +117,54 @@ export interface LoadedWorld {
   ws: WorldState;
 }
 
+/** Onde fica a cópia de um save que não pôde ser usado. Só a última é guardada. */
+export const REJECTED_KEY = `${PERSIST.key}.rejeitado`;
+
+/** Motivo pelo qual um save não pode ser aplicado, ou null se ele serve. */
+export function saveProblem(blob: unknown): string | null {
+  if (typeof blob !== 'object' || blob === null) return 'não é um objeto';
+  const b = blob as Partial<SaveBlob>;
+  if (b.version !== PERSIST.version) return `versão ${String(b.version)}, esperada ${PERSIST.version}`;
+  if (parseSeed(b.seed) === null) return `semente inválida (${String(b.seed)})`;
+  if (typeof b.minutes !== 'number' || !Number.isFinite(b.minutes)) return 'relógio ausente';
+  if (typeof b.ecs !== 'object' || b.ecs === null || typeof b.ecs.components !== 'object') return 'mundo (ecs) ausente';
+  return null;
+}
+
+/**
+ * Guarda de lado um save que não vai ser usado. Sem isto, o primeiro autosave
+ * do mundo novo (45 s depois) apagava o antigo para sempre — numa troca de
+ * versão, ou por um arquivo corrompido, o usuário perdia meses de ilha calado.
+ */
+export async function setAsideSave(raw: string, reason: string): Promise<void> {
+  console.warn(`[driftwood] save não usado (${reason}); cópia guardada em "${REJECTED_KEY}".`);
+  await backend().write(REJECTED_KEY, raw);
+}
+
 /** Devolve null se não houver save válido — aí o mundo nasce novo. */
-export async function loadWorld(): Promise<{ blob: SaveBlob } | null> {
+export async function loadWorld(): Promise<{ blob: SaveBlob; raw: string } | null> {
   const raw = await backend().read(PERSIST.key);
   if (!raw) return null;
+  let blob: unknown;
   try {
-    const blob = JSON.parse(raw) as SaveBlob;
-    if (blob.version !== PERSIST.version) return null;
-    return { blob };
+    blob = JSON.parse(raw);
   } catch {
+    await setAsideSave(raw, 'JSON ilegível');
     return null;
   }
+  const problem = saveProblem(blob);
+  if (problem) {
+    await setAsideSave(raw, problem);
+    return null;
+  }
+  return { blob: blob as SaveBlob, raw };
 }
 
 /** Aplica um save sobre um mundo recém-criado com a mesma semente. */
 export function applySave(blob: any, world: World, ws: WorldState): void {
   ws.cal.minutes = blob.minutes;
   ws.worldSeconds = blob.worldSeconds;
+  ws.steps = typeof blob.steps === 'number' ? blob.steps : 0;
   Object.assign(ws.weather, blob.weather);
   ws.flags = blob.flags ?? {};
   ws.stats = blob.stats ?? {};
@@ -156,6 +194,7 @@ export async function wipeSave(): Promise<void> {
   await backend().clear(PERSIST.key);
 }
 
-export function savedSeed(blob: any): number {
-  return typeof blob?.seed === 'number' ? blob.seed : Math.floor(Math.random() * 2 ** 31);
+/** Semente do save. `loadWorld` só devolve saves com semente válida. */
+export function savedSeed(blob: SaveBlob): number {
+  return parseSeed(blob.seed)!;
 }

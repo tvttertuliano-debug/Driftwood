@@ -217,7 +217,9 @@ export class World {
 
   /** Snapshot serializável de todos os componentes marcados como persistentes. */
   serialize(): SerializedWorld {
-    const out: SerializedWorld = { nextEntity: this.nextEntity, components: {} };
+    // A lista de ids livres entra no save: sem ela, a próxima entidade criada
+    // depois de recarregar ganhava outro id que no mundo que nunca parou.
+    const out: SerializedWorld = { nextEntity: this.nextEntity, free: this.freeList.slice(), components: {} };
     for (const type of registry) {
       const s = this.stores.get(type.id);
       if (!s || !type.persist || s.size === 0) continue;
@@ -246,6 +248,10 @@ export class World {
         s.set(e, Object.assign(type.create() as object, blob.d[i]));
       }
     }
+    // Saves antigos não têm `free`: os ids vagos ficam sem reuso, como antes.
+    for (const e of snapshot.free ?? []) {
+      if (e > 0 && e < this.nextEntity && this.alive[e] === 0) this.freeList.push(e);
+    }
   }
 
   get entityCount(): number {
@@ -257,6 +263,8 @@ export class World {
 
 export interface SerializedWorld {
   nextEntity: number;
+  /** Ids vagos, na ordem em que serão reusados. Ausente em saves antigos. */
+  free?: number[];
   components: Record<string, { e: number[]; d: any[] }>;
 }
 
@@ -274,10 +282,8 @@ export enum Stage {
   Ecology = 4,
   /** Diretor narrativo e eventos raros. */
   Director = 5,
-  /** Áudio ambiente. */
-  Audio = 6,
-  /** Persistência. */
-  Persist = 7,
+  // Áudio e persistência não são sistemas: rodam no laço de main.ts, por quadro
+  // e por intervalo de tempo real, fora do passo fixo.
 }
 
 export interface SimContext {
@@ -299,7 +305,12 @@ export interface System<C extends SimContext = SimContext> {
 
 export class Scheduler<C extends SimContext = SimContext> {
   private systems: System<C>[] = [];
-  private tick = 0;
+  /**
+   * Passos já rodados. Decide a fase dos sistemas com `every`; por isso vai
+   * para o save — sem ele, um mundo recarregado rodava a ecologia e o diretor
+   * em passos diferentes e divergia do mundo que nunca parou.
+   */
+  tick = 0;
   /** Custo médio por sistema em ms — usado pelo orçamento de performance. */
   readonly cost = new Map<string, number>();
 

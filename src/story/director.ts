@@ -1,7 +1,7 @@
 import { Stage, type System } from '../core/ecs.ts';
 import { SIM } from '../core/config.ts';
 import { CCastaway, CSkills } from '../sim/components.ts';
-import { chronicle, flag, setFlag, type WorldState } from '../sim/worldState.ts';
+import { flag, narrate, setFlag, type WorldState } from '../sim/worldState.ts';
 import type { DriftContext } from '../sim/context.ts';
 import { STORIES, STORY_BY_ID } from './stories.ts';
 import { rollRareEvents } from './rareEvents.ts';
@@ -76,8 +76,7 @@ function enterStep(c: StoryCtx, step: StoryStep): void {
   if (step.run) step.run(c);
   if (step.text) {
     const text = typeof step.text === 'function' ? step.text(c) : step.text;
-    chronicle(c.ws, text, step.tone ?? 'rotina');
-    c.bus.emit('crônica', { text, tone: step.tone ?? 'rotina' });
+    narrate(c.ws, c.bus, text, step.tone ?? 'rotina');
   }
 }
 

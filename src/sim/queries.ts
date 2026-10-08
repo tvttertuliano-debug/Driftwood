@@ -41,13 +41,19 @@ export function currentProject(world: World): Entity | null {
   return best;
 }
 
+/** Coisas que estão na ilha mas não são obra dele: não se conserta destroço nem rochedo. */
+export const NOT_REPAIRABLE: ReadonlySet<string> = new Set(['destroço', 'destroço-jangada', 'rocha']);
+
+/** Cenário que o tempo não gasta. */
+export const DOES_NOT_WEAR: ReadonlySet<string> = new Set(['rocha']);
+
 /** Construção pronta mais danificada, se valer a pena consertar. */
 export function mostDamagedProp(world: World, threshold = 0.62): Entity | null {
   let best: Entity | null = null;
   let worst = threshold;
   for (const e of world.query(CProp)) {
     const p = world.need(e, CProp);
-    if (p.progress < 1) continue;
+    if (p.progress < 1 || NOT_REPAIRABLE.has(p.kind)) continue;
     if (p.condition < worst) {
       worst = p.condition;
       best = e;
@@ -98,7 +104,6 @@ export function spawnProp(
   kind: string,
   x: number,
   init: Partial<Prop> = {},
-  brush = kind,
 ): Entity {
   const e = world.create();
   const y = ws.island.surfaceAt(x);
@@ -111,6 +116,6 @@ export function spawnProp(
     seed: init.seed ?? ws.rngAmbient.int(1, 1e6),
     flags: init.flags ?? {},
   });
-  // Visual é adicionado pelo chamador quando quer um pincel diferente do nome.
+  // O visual fica com o chamador: o desenho nem sempre tem o nome do objeto.
   return e;
 }

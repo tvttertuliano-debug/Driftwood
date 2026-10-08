@@ -5,6 +5,7 @@ import { level } from '../ai/skills.ts';
 import { raise, satisfy } from '../ai/needs.ts';
 import { clamp01 } from '../core/math.ts';
 import type { Story, StoryCtx, StoryStep } from './types.ts';
+import type { AssetId } from '../art/assets/ids.ts';
 
 /**
  * Histórias emergentes. Não são um roteiro: são *possibilidades* com condições.
@@ -31,7 +32,7 @@ function spot(c: StoryCtx, hint: 'praia' | 'cume' | 'meio' | 'enseada' = 'meio')
 }
 
 /** Cria uma obra inacabada. A ação "construir" cuida do resto, no ritmo dele. */
-function startProject(c: StoryCtx, kind: string, brush: string, hint: Parameters<typeof spot>[1] = 'meio'): void {
+function startProject(c: StoryCtx, kind: string, brush: AssetId, hint: Parameters<typeof spot>[1] = 'meio'): void {
   const x = spot(c, hint);
   const e = spawnProp(c.world, c.ws, kind, x, { progress: 0.01, condition: 1 });
   c.world.add(e, CVisual, { brush, seed: c.rng.int(1, 1e6), opacity: 1, shadow: 0.85 });
@@ -48,7 +49,7 @@ const projectDone = (kind: string) => (c: StoryCtx) => {
 interface ProjectOpts {
   id: string;
   kind: string;
-  brush?: string;
+  brush: AssetId;
   weight: number;
   where?: Parameters<typeof spot>[1];
   intro: string;
@@ -58,23 +59,34 @@ interface ProjectOpts {
   after?: (c: StoryCtx) => void;
 }
 
+/** Bandeira de "já construiu isto alguma vez": muda o texto quando é uma reconstrução. */
+const rebuilt = (kind: string) => `já-construiu:${kind}`;
+
 /** Molde de história "ele decidiu construir X". Muitas obras, pouca repetição de código. */
 function projectStory(o: ProjectOpts): Story {
   return {
     id: o.id,
     slot: 'obra',
     weight: o.weight,
-    once: true,
+    // Sem `once`: o desgaste destrói as obras, e uma obra que só pudesse existir
+    // uma vez na vida do mundo deixava a ilha vazia em poucos meses — a fogueira
+    // sumia antes do dia 60 e com ela fogo, cozinha e brasas, para sempre. Agora
+    // o que vale é "não existe agora, nem pronta nem em obra".
     cooldown: 2 * DAY,
-    requires: (c) => !hasProp(c.world, o.kind) && (o.requires?.(c) ?? true),
+    requires: (c) => findProp(c.world, o.kind, false) === null && (o.requires?.(c) ?? true),
     bias: o.bias,
     steps: [
-      { text: o.intro, tone: 'rotina', run: (c) => startProject(c, o.kind, o.brush ?? o.kind, o.where) },
+      {
+        text: (c) => (flag(c.ws, rebuilt(o.kind)) > 0 ? `Do que havia antes não sobrou nada. ${o.intro}` : o.intro),
+        tone: 'rotina',
+        run: (c) => startProject(c, o.kind, o.brush, o.where),
+      },
       { until: projectDone(o.kind), timeout: 6 * DAY },
       {
         text: o.outro,
         tone: 'conquista',
         run: (c) => {
+          setFlag(c.ws, rebuilt(o.kind));
           o.after?.(c);
           const n = needsOf(c);
           if (n) {
@@ -228,8 +240,12 @@ const ARCOS: Story[] = [
         wait: 3 * HOUR,
       },
       {
+        // O desfecho é sorteado uma vez só, no `run` (que roda antes do texto),
+        // e o texto lê o resultado. Antes eram dois sorteios: a crônica dizia que
+        // a jangada afundou e ela continuava boiando, levada pelo vento, até
+        // mais de mil unidades da ilha — ainda na lista de consertos.
         text: (c) =>
-          c.rng.chance(0.6)
+          flag(c.ws, 'jangada-afundou') > 0
             ? 'A jangada afundou a cinquenta metros da praia. Ele voltou nadando, sem pressa.'
             : 'A corrente virou e devolveu a jangada à mesma praia. Ele riu. Acho que riu.',
         tone: 'perda',
@@ -241,11 +257,25 @@ const ARCOS: Story[] = [
           }
           setFlag(c.ws, 'jangada-pronta', 0);
           bump(c.ws, 'tentativas-de-fuga');
+          const sank = c.rng.chance(0.6);
+          setFlag(c.ws, 'jangada-afundou', sank ? 1 : 0);
           const e = findProp(c.world, 'jangada');
-          if (e) {
-            const p = c.world.need(e, CProp);
-            p.condition = 0.25;
-            p.kind = 'destroço-jangada';
+          if (!e) return;
+          if (sank) {
+            c.world.destroy(e);
+            return;
+          }
+          c.world.remove(e, CBody);
+          const p = c.world.need(e, CProp);
+          p.condition = 0.25;
+          p.kind = 'destroço-jangada';
+          const tr = c.world.get(e, CTransform);
+          if (tr) {
+            const isl = c.ws.island;
+            const shore = Math.abs(tr.x - isl.shoreLeft) < Math.abs(tr.x - isl.shoreRight) ? isl.shoreLeft + 3 : isl.shoreRight - 3;
+            tr.x = shore;
+            tr.y = isl.surfaceAt(shore);
+            tr.rot = 0;
           }
         },
       },

@@ -1,26 +1,20 @@
-import { Scheduler, World } from './core/ecs.ts';
-import { EventBus } from './core/events.ts';
-import { PERSIST, RENDER, SIM } from './core/config.ts';
-import { createWorldState } from './sim/worldState.ts';
+import { PERSIST, SIM } from './core/config.ts';
 import { genesis } from './sim/genesis.ts';
-import {
-  agingSystem, appearSystem, critterSystem, ecologySystem, ephemeralSystem,
-  fireSystem, physicsSystem, timeSystem,
-} from './sim/systems.ts';
-import { actSystem, mindSystem } from './ai/brain.ts';
-import { directorSystem } from './story/director.ts';
+import { createSimulation, restoreSimulation, stepSimulation } from './simulation.ts';
 import { Renderer } from './render/renderer.ts';
 import { Ambience } from './audio/ambience.ts';
-import { applySave, loadWorld, savedSeed, saveWorld, wipeSave } from './persist/save.ts';
+import { loadWorld, savedSeed, saveWorld, setAsideSave, wipeSave } from './persist/save.ts';
+import { parseSeed } from './core/rng.ts';
 import { formatClock, moonName } from './sim/calendar.ts';
 import { describe } from './sim/weather.ts';
 import { CBrain, CCastaway, CNeeds, CProp, CTransform } from './sim/components.ts';
 import { dominantNeed } from './ai/needs.ts';
-import type { DriftContext } from './sim/context.ts';
 
 /**
  * Ponto de entrada. Laço de passo fixo para a simulação, quadro livre para o
- * desenho. A janela pode ficar aberta por semanas: nada aqui aloca por quadro.
+ * desenho. A janela pode ficar aberta por semanas. As partículas não alocam; o
+ * resto aloca pouco por quadro (consultas ao ECS, a fila de desenháveis) e o
+ * coletor de lixo dá conta — medido sem crescimento de heap em dias de mundo.
  */
 
 const canvas = document.getElementById('stage') as HTMLCanvasElement;
@@ -32,7 +26,10 @@ async function boot(): Promise<void> {
   const params = new URLSearchParams(location.search);
   // `?novo` recomeça o mundo do zero; `?semente=123` reproduz uma ilha exata.
   if (params.has('novo')) await wipeSave();
-  const forcedSeed = params.has('semente') ? Number(params.get('semente')) : null;
+  const forcedSeed = parseSeed(params.get('semente'));
+  if (params.has('semente') && forcedSeed === null) {
+    console.warn(`[driftwood] ?semente=${params.get('semente')} não é um inteiro de 0 a 4294967295; ignorada.`);
+  }
 
   const candidate = params.has('novo') ? null : await loadWorld();
 
@@ -52,37 +49,27 @@ async function boot(): Promise<void> {
   const saved = savedIsForAnotherIsland ? null : candidate;
   const seed = forcedSeed ?? (saved ? savedSeed(saved.blob) : Math.floor(Math.random() * 2 ** 31));
 
-  const world = new World(4096);
-  const ws = createWorldState(seed);
-  const bus = new EventBus();
-
+  let sim = createSimulation(seed);
   if (saved) {
-    applySave(saved.blob, world, ws);
-    // Mundo antigo, mas sem ninguém dentro: recomeça em vez de travar.
-    if (world.first(CCastaway) === null) genesis(world, ws);
+    try {
+      restoreSimulation(sim, saved.blob);
+      // Mundo antigo, mas sem ninguém dentro: recomeça em vez de travar.
+      if (sim.world.first(CCastaway) === null) genesis(sim.world, sim.ws);
+    } catch (err) {
+      // Um save que passa na validação e mesmo assim quebra ao aplicar travaria
+      // o boot em toda abertura — e no protetor de tela não há como pedir `?novo`.
+      await setAsideSave(saved.raw, `falhou ao aplicar: ${String((err as Error)?.message ?? err)}`);
+      sim = createSimulation(seed);
+      genesis(sim.world, sim.ws);
+    }
   } else {
-    genesis(world, ws);
+    genesis(sim.world, sim.ws);
   }
-
-  const scheduler = new Scheduler<DriftContext>().add(
-    timeSystem,
-    mindSystem,
-    agingSystem,
-    actSystem,
-    critterSystem,
-    physicsSystem,
-    ephemeralSystem,
-    appearSystem,
-    ecologySystem,
-    fireSystem,
-    directorSystem,
-  );
+  const { world, ws, bus, scheduler } = sim;
 
   const renderer = new Renderer(canvas, seed);
   const ambience = new Ambience();
   ambience.bind(bus);
-
-  const ctx: DriftContext = { world, ws, bus, dt: SIM.step, elapsed: 0 };
 
   // ── crônica na tela ──
   bus.on('crônica', (ev) => {
@@ -116,6 +103,25 @@ async function boot(): Promise<void> {
   // mudar (painel lateral, tela dividida, entrada em tela cheia).
   new ResizeObserver(() => renderer.resize(dpr())).observe(canvas);
   window.addEventListener('resize', () => renderer.resize(dpr()));
+
+  // Perda de contexto WebGL: a simulação segue; o desenho pausa e, quando o
+  // navegador devolve o contexto, tudo que mora na GPU é recriado.
+  // `preventDefault` é o que pede ao navegador para devolvê-lo.
+  let gpuLost = false;
+  canvas.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    gpuLost = true;
+    console.warn('[driftwood] contexto WebGL perdido; aguardando restauração.');
+  });
+  canvas.addEventListener('webglcontextrestored', () => {
+    try {
+      renderer.restoreGpu(dpr());
+      gpuLost = false;
+      console.warn('[driftwood] contexto WebGL restaurado.');
+    } catch (err) {
+      console.error('[driftwood] falha ao restaurar o contexto WebGL', err);
+    }
+  });
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) ambience.suspend();
@@ -165,11 +171,7 @@ async function boot(): Promise<void> {
       accumulator += rawDt;
       let steps = 0;
       while (accumulator >= SIM.step && steps < SIM.maxCatchUp) {
-        bus.setClock(ws.worldSeconds);
-        ctx.dt = SIM.step;
-        ctx.elapsed += SIM.step;
-        scheduler.run(ctx, profiling);
-        bus.dispatch();
+        stepSimulation(sim, profiling);
         accumulator -= SIM.step;
         steps++;
       }
@@ -184,7 +186,7 @@ async function boot(): Promise<void> {
     }
     ws.flags['fogueira-acesa'] = lit;
 
-    renderer.render(world, ws, rawDt);
+    if (!gpuLost) renderer.render(world, ws, rawDt);
     ambience.update(rawDt, ws, renderer.camera.view);
 
     sinceSave += rawDt;
@@ -205,8 +207,13 @@ async function boot(): Promise<void> {
       `dia ${ws.sky.day}  ${formatClock(ws.sky)}  ${ws.sky.season}  ${moonName(ws.sky.moonPhase)}`,
       `${describe(ws.weather)}   vento ${(ws.weather.wind * 100) | 0}%   maré ${ws.tide.toFixed(2)}`,
       needs ? `impulso: ${dominantNeed(needs)}   humor ${(world.need(self!, CCastaway).mood * 100) | 0}%` : '',
-      `história: ${ws.activeStory ?? '—'}   entidades ${world.entityCount}   partículas ${renderer.particleCount}`,
+      `obra: ${ws.activeStory ?? '—'}   acontecimento: ${ws.sideStory ?? '—'}   entidades ${world.entityCount}   partículas ${renderer.particleCount}`,
       `${fps} fps   quadro ${renderer.frameMs.toFixed(1)} ms   desenho ${renderer.renderMs.toFixed(1)} ms   qualidade ${renderer.quality}   [i] hud  [p] pausa  [f] tela cheia  [m] som`,
+      // Tecla d (de desenvolvimento): custo médio por sistema, em ms por passo.
+      profiling
+        ? `custo: ${[...scheduler.cost].sort((a, b) => b[1] - a[1]).slice(0, 6)
+          .map(([name, ms]) => `${name} ${ms.toFixed(3)}`).join('   ')}`
+        : '',
     ];
     hudEl.textContent = lines.filter(Boolean).join('\n');
   }
@@ -214,6 +221,17 @@ async function boot(): Promise<void> {
   window.addEventListener('beforeunload', () => {
     void saveWorld(world, ws);
   });
+
+  // A casca de desktop chama isto antes de fechar a janela e espera a promessa:
+  // é o que garante o salvamento quando o protetor de tela encerra.
+  (window as { __driftwoodFlush?: () => Promise<void> }).__driftwoodFlush = () => saveWorld(world, ws);
+
+  // No protetor de tela, um clique sem mover o mouse também encerra. O
+  // Electron não entrega cliques ao processo principal, então a página avisa.
+  const desktop = (window as { driftwood?: { modo?: string; sair?: () => void } }).driftwood;
+  if (desktop?.modo === 'protetor') {
+    window.addEventListener('pointerdown', () => desktop.sair?.());
+  }
 
   // Ponte de desenvolvimento: inspecionar o mundo e tirar um quadro sem plugins.
   (window as { __driftwood?: unknown }).__driftwood = {
@@ -231,12 +249,7 @@ async function boot(): Promise<void> {
     },
     /** Avança N passos de simulação instantaneamente (para testar dias inteiros). */
     fastForward(steps: number) {
-      for (let i = 0; i < steps; i++) {
-        bus.setClock(ws.worldSeconds);
-        ctx.dt = SIM.step;
-        scheduler.run(ctx);
-        bus.dispatch();
-      }
+      for (let i = 0; i < steps; i++) stepSimulation(sim);
       return { dia: ws.sky.day, hora: formatClock(ws.sky), clima: describe(ws.weather) };
     },
     /** Um quadro renderizado agora, em PNG (dataURL). */

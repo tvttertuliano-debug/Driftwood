@@ -18,7 +18,6 @@ precision highp float;
 in vec2 vUv;
 out vec4 outColor;
 
-uniform vec2  uRes;
 uniform float uAspect;
 uniform float uTime;
 uniform float uHorizon;      // y do nível do mar em NDC
@@ -41,7 +40,6 @@ uniform float uWaveAmp;
 uniform int   uOctaves;
 uniform int   uPhenom;       // 0 nenhum, 1 arco-iris, 2 aurora, 3 eclipse, 4 meteoros
 uniform float uPhenomK;
-uniform float uZoom;         // unidades de mundo por meia-altura de tela
 
 // ─────────────────── ruído ───────────────────
 float hash21(vec2 p) {
@@ -329,7 +327,6 @@ export interface BackdropParams {
   moonPos: [number, number];
   waveAmp: number;
   octaves: number;
-  zoom: number;
 }
 
 export class Backdrop {
@@ -347,7 +344,6 @@ export class Backdrop {
     const gl = this.gl;
     const u = this.prog.uniforms;
     gl.useProgram(this.prog.handle);
-    gl.uniform2f(u.uRes!, gl.drawingBufferWidth, gl.drawingBufferHeight);
     gl.uniform1f(u.uAspect!, p.aspect);
     gl.uniform1f(u.uTime!, p.time);
     gl.uniform1f(u.uHorizon!, p.horizonNdc);
@@ -368,7 +364,6 @@ export class Backdrop {
     gl.uniform1f(u.uSeed!, seed % 1000);
     gl.uniform1f(u.uWaveAmp!, p.waveAmp);
     gl.uniform1i(u.uOctaves!, p.octaves);
-    gl.uniform1f(u.uZoom!, p.zoom);
 
     const phen = { nenhum: 0, 'arco-íris': 1, aurora: 2, eclipse: 3, meteoros: 4 } as const;
     gl.uniform1i(u.uPhenom!, phen[w.phenomenon] ?? 0);

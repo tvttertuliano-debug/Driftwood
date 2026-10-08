@@ -1,9 +1,10 @@
 import { clamp01, lerp } from '../core/math.ts';
 import { CPlant, CProp, CTransform, CVisual, CCritter } from '../sim/components.ts';
 import {
-  currentProject, findProp, mostDamagedProp, nearestFruitingPalm, propX, spawnProp, findCritter,
+  countPlants, currentProject, findProp, findProps, mostDamagedProp, nearestFruitingPalm, propX, spawnProp,
+  findCritter,
 } from '../sim/queries.ts';
-import { bump, chronicle, flag, setFlag, stat } from '../sim/worldState.ts';
+import { bump, flag, narrate, setFlag, stat } from '../sim/worldState.ts';
 import { isDangerous, isWet } from '../sim/weather.ts';
 import { desire, raise, satisfy, urgency } from './needs.ts';
 import { crossedMilestone, level, practice } from './skills.ts';
@@ -36,9 +37,16 @@ export interface Action {
 
 const HOUR = 3600;
 
-function say(c: AIContext, text: string, tone: Parameters<typeof chronicle>[2] = 'rotina'): void {
-  chronicle(c.ws, text, tone);
-  c.bus.emit('crônica', { text, tone });
+/**
+ * Tetos de população. Sem eles, um ano de mundo (~10 h reais) deixava ~100
+ * esculturas e ~120 plantas numa ilha de 170 unidades de praia a praia, e o
+ * custo do quadro e do save só crescia.
+ */
+const MAX_SCULPTURES = 24;
+const MAX_PLANTS = 40;
+
+function say(c: AIContext, text: string, tone: Parameters<typeof narrate>[3] = 'rotina'): void {
+  narrate(c.ws, c.bus, text, tone);
 }
 
 /** Pequeno desastre cômico. O humor vem da física, não da piada escrita. */
@@ -333,6 +341,7 @@ export const ACTIONS: Action[] = [
     cooldown: 20 * HOUR,
     place: (c) => c.ws.island.clampToLand(c.tr.x + c.rng.range(-40, 40)),
     score: (c) => {
+      if (countPlants(c.world) >= MAX_PLANTS) return 0;
       const seasonBonus = c.ws.sky.season === 'primavera' ? 0.7 : c.ws.sky.season === 'verão' ? 0.35 : 0.1;
       return seasonBonus + desire(c.needs.creativity) * 0.4 + c.needs.hope * 0.4;
     },
@@ -424,6 +433,15 @@ export const ACTIONS: Action[] = [
     onFinish: (c) => {
       satisfy(c.needs, 'creativity', 0.75);
       if (mishap(c, 0.22, 'A escultura rachou ao meio. Ele encarou os pedaços por um tempo.')) return;
+      // Ilha cheia: a pedra da escultura mais gasta vira a nova.
+      const existing = findProps(c.world, 'escultura');
+      if (existing.length >= MAX_SCULPTURES) {
+        let worn = existing[0];
+        for (const s of existing) {
+          if (c.world.need(s, CProp).condition < c.world.need(worn, CProp).condition) worn = s;
+        }
+        c.world.destroy(worn);
+      }
       const x = c.ws.island.clampToLand(c.tr.x);
       const e = spawnProp(c.world, c.ws, 'escultura', x, { seed: c.rng.int(1, 1e6) });
       c.world.add(e, CVisual, { brush: 'escultura', seed: c.rng.int(1, 1e6), opacity: 0, shadow: 0.8 });

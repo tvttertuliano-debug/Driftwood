@@ -27,14 +27,8 @@ export const WORLD = {
 export const RENDER = {
   /** Resolução interna máxima (a janela pode ser 4K; a simulação visual não precisa). */
   maxPixels: 3840 * 2160,
-  /** Escala mínima/máxima de zoom da câmera. */
-  zoomRange: [0.55, 2.6] as [number, number],
   /** Segundos entre trocas automáticas de enquadramento. */
   cameraDwell: [38, 95] as [number, number],
-  /** Alvo de FPS quando a janela está visível. */
-  targetFps: 60,
-  /** FPS quando a janela perde o foco (economia). */
-  idleFps: 12,
 } as const;
 
 export const PERSIST = {
@@ -50,11 +44,9 @@ export type QualityTier = 'alta' | 'media' | 'baixa';
 export const QUALITY: Record<QualityTier, {
   particles: number;
   oceanOctaves: number;
-  reflections: boolean;
-  softShadowSteps: number;
   vegetationDetail: number;
 }> = {
-  alta: { particles: 1400, oceanOctaves: 5, reflections: true, softShadowSteps: 3, vegetationDetail: 1 },
-  media: { particles: 700, oceanOctaves: 4, reflections: true, softShadowSteps: 2, vegetationDetail: 0.7 },
-  baixa: { particles: 260, oceanOctaves: 3, reflections: false, softShadowSteps: 1, vegetationDetail: 0.45 },
+  alta: { particles: 1400, oceanOctaves: 5, vegetationDetail: 1 },
+  media: { particles: 700, oceanOctaves: 4, vegetationDetail: 0.7 },
+  baixa: { particles: 260, oceanOctaves: 3, vegetationDetail: 0.45 },
 };

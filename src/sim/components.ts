@@ -1,4 +1,5 @@
 import { defineComponent } from '../core/ecs.ts';
+import type { AssetId } from '../art/assets/ids.ts';
 
 /** Posição no diorama. x: leste-oeste, y: altura (0 = nível do mar), depth: paralaxe. */
 export interface Transform {
@@ -74,7 +75,6 @@ export interface Brain {
   /** Fase interna da ação (cada ação interpreta como quiser). */
   phase: number;
   targetX: number;
-  targetEntity: number;
   /** Ação -> instante da última execução, para evitar repetição. */
   lastRun: Record<string, number>;
   /** Trilha de intenção: o que ele planeja fazer em seguida, se nada mudar. */
@@ -83,7 +83,7 @@ export interface Brain {
   frustration: number;
 }
 export const CBrain = defineComponent<Brain>('Brain', () => ({
-  action: 'ocioso', elapsed: 0, duration: 3, phase: 0, targetX: 0, targetEntity: 0,
+  action: 'ocioso', elapsed: 0, duration: 3, phase: 0, targetX: 0,
   lastRun: {}, intent: '', frustration: 0,
 }));
 
@@ -143,8 +143,8 @@ export const CCritter = defineComponent<Critter>('Critter', () => ({
 
 /** Marca uma entidade como visível e diz por qual pincel procedural desenhá-la. */
 export interface Visual {
-  /** Nome do desenhista registrado em render/sprites. */
-  brush: string;
+  /** Nome do desenho no catálogo visual (`art/assets`). */
+  brush: AssetId;
   /** Variação estável de cor/forma. */
   seed: number;
   /** 0..1, para nascer/desaparecer suavemente. */
@@ -165,9 +165,3 @@ export interface RareMark {
 }
 export const CRare = defineComponent<RareMark>('RareMark', () => ({ event: '', ttl: 60, phase: 0 }));
 
-/** Vida útil simples: some quando zera. Usado por efeitos e coisas efêmeras. */
-export interface Ephemeral {
-  ttl: number;
-  fade: number;
-}
-export const CEphemeral = defineComponent<Ephemeral>('Ephemeral', () => ({ ttl: 5, fade: 1 }), false);

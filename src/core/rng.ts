@@ -108,6 +108,18 @@ export function fbm1(x: number, octaves = 4, seed = 0): number {
   return sum / norm;
 }
 
+/**
+ * Semente vinda de fora (URL, save). Só aceita inteiros de 0 a 2^32 − 1: um
+ * `?semente=abc` virava NaN, que o JSON grava como null, e no carregamento
+ * seguinte a ilha era sorteada de novo debaixo das entidades salvas.
+ */
+export function parseSeed(raw: unknown): number | null {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw === 'string' && raw.trim() === '') return null;
+  const n = typeof raw === 'number' ? raw : Number(raw);
+  return Number.isSafeInteger(n) && n >= 0 && n <= 0xffffffff ? n : null;
+}
+
 export function hashString(str: string): number {
   let h = 2166136261 >>> 0;
   for (let i = 0; i < str.length; i++) {

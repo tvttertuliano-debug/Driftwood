@@ -3,14 +3,14 @@ import { Backdrop } from './backdrop.ts';
 import { Camera, type Shot } from './camera.ts';
 import { Particles } from './particles.ts';
 import { Post, type Grade } from './post.ts';
-import { BRUSHES, type BrushCtx } from './brushes.ts';
-import { CREATURE_BRUSHES } from './creatures.ts';
+import type { BrushCtx } from './brushes.ts';
+import { resolveAsset } from '../art/assets/registry.ts';
 import { drawCharacter } from './character.ts';
 import {
   computeLighting, foamColor, foliageColor, lit, shadowColor, waterColor,
   ROCK, ROCK_DARK, SAND, SAND_WET, type Lighting,
 } from './palette.ts';
-import { createContext } from './gl.ts';
+import { configureContext, createContext } from './gl.ts';
 import { QUALITY, RENDER, WORLD, type QualityTier } from '../core/config.ts';
 import { clamp, clamp01, lerp, mixColor, scaleColor, smoothstep, type RGB } from '../core/math.ts';
 import { fbm1, Rng } from '../core/rng.ts';
@@ -64,6 +64,20 @@ export class Renderer {
     this.post = new Post(this.gl);
     this.camera = new Camera(seed);
     this.ridgeSeed = seed ^ 0x7ea1;
+  }
+
+  /**
+   * Recria tudo que mora na GPU depois de uma perda de contexto. O objeto `gl`
+   * continua o mesmo, mas programas, buffers, texturas e o estado global foram
+   * descartados pelo driver (atualização de driver, suspensão, troca de GPU).
+   * Sem isto, um protetor de tela aberto por semanas ficava preto para sempre.
+   */
+  restoreGpu(dpr: number): void {
+    configureContext(this.gl);
+    this.painter = new Painter(this.gl);
+    this.backdrop = new Backdrop(this.gl);
+    this.post = new Post(this.gl);
+    this.resize(dpr);
   }
 
   resize(dpr: number): void {
@@ -213,17 +227,33 @@ export class Renderer {
       // O corpo da ilha é terra quente, não preto: mantém a leitura de pintura.
       const earthBody = mixColor([0.4, 0.31, 0.24], scaleColor(grass, 0.55), 0.45);
       let bodyBase = mixColor(earthBody, sandBody, beach);
-      bodyBase = mixColor(bodyBase, mixColor(ROCK, ROCK_DARK, 0.65), rockK);
-      const body = lit(bodyBase, l, 0.4, facing * 0.5);
+      bodyBase = mixColor(bodyBase, mixColor(ROCK, ROCK_DARK, 0.65), rockK * 0.2);
+      const body = lit(bodyBase, l, 0.4, facing * 0.15);
 
       // Corpo até a linha d'água, em dois trechos. Com um único gradiente do
       // topo até o mar, a cor da superfície só existia na crista e a encosta
       // inteira virava terra: a faixa de vegetação some da imagem.
+      //
+      // O terreno é pintado em colunas verticais, e a cor de cada coluna vem da
+      // superfície no topo dela. Tudo que varia de coluna para coluna — rocha
+      // na encosta íngreme, o lado da luz — vira uma barra vertical se descer
+      // pela coluna inteira: eram as "barras pálidas" na encosta que a
+      // auditoria de julho não explicou. Por isso o material e a luz direcional
+      // ficam numa pele fina que acompanha a superfície (SKIN unidades), e o
+      // interior usa a vegetação sem rocha e com pouca luz lateral, que muda
+      // devagar de uma coluna para a outra.
+      const SKIN = 2.2;
+      const vegBase = mixColor(grassTop, sandTop, beach);
+      const veg = lit(vegBase, l, 1, facing * 0.15);
       const mid1a = lerp(waterY, ha, 0.42);
       const mid1b = lerp(waterY, hb, 0.42);
-      const midCol = mixColor(top, body, 0.42);
-      p.triShaded(xa, mid1a, midCol, 1, xa, ha, top, 1, xb, hb, top, 1);
-      p.triShaded(xa, mid1a, midCol, 1, xb, hb, top, 1, xb, mid1b, midCol, 1);
+      const skinA = Math.max(mid1a, ha - SKIN);
+      const skinB = Math.max(mid1b, hb - SKIN);
+      const midCol = mixColor(veg, body, 0.42);
+      p.triShaded(xa, skinA, veg, 1, xa, ha, top, 1, xb, hb, top, 1);
+      p.triShaded(xa, skinA, veg, 1, xb, hb, top, 1, xb, skinB, veg, 1);
+      p.triShaded(xa, mid1a, midCol, 1, xa, skinA, veg, 1, xb, skinB, veg, 1);
+      p.triShaded(xa, mid1a, midCol, 1, xb, skinB, veg, 1, xb, mid1b, midCol, 1);
       p.triShaded(xa, waterY, body, 1, xa, mid1a, midCol, 1, xb, mid1b, midCol, 1);
       p.triShaded(xa, waterY, body, 1, xb, mid1b, midCol, 1, xb, waterY, body, 1);
       const skirt = waterY - 2.2;
@@ -312,6 +342,9 @@ export class Renderer {
       facing: tr.facing,
       opacity: vis.opacity,
       depth: tr.depth,
+      // Os valores de CVisual.shadow giram em torno de 0,7 (vegetação); 0,85 é
+      // construção, 0 é o que voa. Normalizado para 0,7 = sombra de sempre.
+      shadow: clamp(vis.shadow / 0.7, 0, 1.25),
       time: this.renderClock,
       season: ws.sky.season,
       wind: ws.weather.wind,
@@ -334,7 +367,6 @@ export class Renderer {
       const prop = world.get(e, CProp);
       const critter = world.get(e, CCritter);
 
-      let brushName = vis.brush;
       const extra: Record<string, number> = {};
       if (plant) {
         extra.growth = plant.growth;
@@ -348,14 +380,11 @@ export class Renderer {
         extra.condition = prop.condition;
         for (const [k, v] of Object.entries(prop.flags)) extra[k] = v;
       }
-      if (critter) {
-        brushName = critter.species === 'peixe-caindo' ? 'peixe' : critter.species;
-        extra.bond = critter.bond;
-      }
+      if (critter) extra.bond = critter.bond;
 
-      const brush = BRUSHES[brushName] ?? CREATURE_BRUSHES[brushName] ?? BRUSHES.destroço;
+      const { draw } = resolveAsset(vis.brush);
       const ctx = this.brushCtxFor(world, ws, l, e, extra);
-      list.push({ depth: tr.depth, y: tr.y, draw: () => brush(ctx) });
+      list.push({ depth: tr.depth, y: tr.y, draw: () => draw(ctx) });
     }
 
     // O náufrago entra na mesma fila de profundidade que o resto do cenário.
@@ -474,7 +503,6 @@ export class Renderer {
       moonPos: [cam.worldToNdcX(ws.sky.moonAzimuth * 260, aspect), cam.worldToNdcY(waterY) + ws.sky.moonAltitude * 1.25],
       waveAmp: swell(ws.weather.wind, ws.tide) * 0.5,
       octaves: q.oceanOctaves,
-      zoom: cam.view,
     }, ws.seed);
 
     // 2. Geometria do mundo.
@@ -554,31 +582,6 @@ export class Renderer {
       aberration: storm * 0.0035 + l.flash * 0.004,
       time: this.renderClock,
     };
-  }
-
-  /** Faixa com alfa em rampa: opaca na borda da tela, invisível para dentro. */
-  private gradientBand(
-    ax: number, ay: number, bx: number, by: number,
-    cx: number, cy: number, dx: number, dy: number,
-    col: RGB, outer: number,
-  ): void {
-    // a,b = borda externa (alfa = outer); c,d = borda interna (alfa = 0).
-    this.painter.triShaded(ax, ay, col, outer, bx, by, col, outer, cx, cy, col, 0);
-    this.painter.triShaded(ax, ay, col, outer, cx, cy, col, 0, dx, dy, col, 0);
-  }
-
-  /** Vinheta suave. Fecha a moldura sem deixar arestas visíveis. */
-  private drawVignette(left: number, right: number, top: number, bottom: number, l: Lighting): void {
-    const col = shadowColor(l);
-    const w = right - left;
-    const h = top - bottom;
-    const vb = h * 0.3;
-    const hb = w * 0.22;
-    const a = 0.34;
-    this.gradientBand(left, top, right, top, right, top - vb, left, top - vb, col, a);
-    this.gradientBand(left, bottom, right, bottom, right, bottom + vb, left, bottom + vb, col, a * 0.85);
-    this.gradientBand(left, bottom, left, top, left + hb, top, left + hb, bottom, col, a * 0.75);
-    this.gradientBand(right, bottom, right, top, right - hb, top, right - hb, bottom, col, a * 0.75);
   }
 
   get particleCount(): number {

@@ -66,7 +66,8 @@ export function genesis(world: World, ws: WorldState): void {
     world.add(e, CVisual, { brush: 'gaivota', seed: rng.int(1, 1e6), opacity: 1, shadow: 0 });
   }
 
-  // Os destroços que o trouxeram até aqui. Ficam na praia para sempre.
+  // Os destroços que o trouxeram até aqui. Ficam na praia até o sal e as
+  // tempestades os desfazerem — ele não os conserta: não são obra dele.
   const wreckX = island.shoreRight - 10;
   for (let i = 0; i < 3; i++) {
     const x = wreckX + rng.range(-9, 9);

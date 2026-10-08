@@ -13,7 +13,7 @@
  * é o contrato do Windows, e o mundo é salvo antes de sair.
  */
 
-const { app, BrowserWindow, ipcMain, screen, dialog, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, dialog, protocol, net, session } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const { pathToFileURL } = require('node:url');
@@ -32,14 +32,16 @@ const APP_URL = 'app://driftwood/index.html';
 // o mundo fique sempre em %APPDATA%/driftwood, empacotado ou não.
 app.setName('driftwood');
 
-const args = process.argv.slice(1).map((a) => a.toLowerCase());
-const flag = (name) => args.some((a) => a === `/${name}` || a === `-${name}` || a === `--${name}`);
+const { parseMode } = require('./args.cjs');
 
-const MODE = flag('s') ? 'protetor'
-  : flag('c') ? 'config'
-  : flag('p') ? 'miniatura'
-  : flag('dev') ? 'dev'
-  : 'janela';
+// Empacotado, argv = [exe, ...]; rodando do código, argv = [electron, main.cjs, ...].
+const MODE = parseMode(process.argv.slice(app.isPackaged ? 1 : 2), app.isPackaged);
+
+// Um mundo, um processo: duas instâncias gravariam o mesmo save. O Windows
+// pode disparar /s de novo enquanto o protetor já está na tela.
+const ownsWorld = MODE === 'protetor' || MODE === 'janela' || MODE === 'dev';
+const isPrimary = !ownsWorld || app.requestSingleInstanceLock();
+if (!isPrimary) app.quit();
 
 const DEV_SERVER = 'http://localhost:5273';
 // Carrega do dev server SÓ quando pedido explicitamente com --dev. Antes isto
@@ -56,13 +58,23 @@ function savePath(key) {
   return path.join(app.getPath('userData'), `${key.replace(/[^a-z0-9.-]/gi, '_')}.json`);
 }
 
-ipcMain.handle('driftwood:save', async (_ev, key, value) => {
-  await fs.mkdir(app.getPath('userData'), { recursive: true });
-  // Escrita atômica: um desligamento no meio não corrompe o mundo.
-  const target = savePath(key);
-  const tmp = `${target}.tmp`;
-  await fs.writeFile(tmp, value, 'utf8');
-  await fs.rename(tmp, target);
+// Escritas em fila: o autosave, o salvamento de saída e o do `beforeunload`
+// podem chegar juntos, e dois `writeFile` no mesmo `.tmp` misturariam o
+// conteúdo antes do `rename`.
+let writes = Promise.resolve();
+let tmpCounter = 0;
+
+ipcMain.handle('driftwood:save', (_ev, key, value) => {
+  const job = writes.then(async () => {
+    await fs.mkdir(app.getPath('userData'), { recursive: true });
+    // Escrita atômica: um desligamento no meio não corrompe o mundo.
+    const target = savePath(key);
+    const tmp = `${target}.${process.pid}.${tmpCounter++}.tmp`;
+    await fs.writeFile(tmp, value, 'utf8');
+    await fs.rename(tmp, target);
+  });
+  writes = job.catch(() => undefined);
+  return job;
 });
 
 ipcMain.handle('driftwood:load', async (_ev, key) => {
@@ -106,9 +118,52 @@ function baseWebPreferences() {
   };
 }
 
+/**
+ * A página só mostra a ilha: não navega para lugar nenhum e não abre janelas.
+ * Se algum dia aparecer um link ou um redirecionamento, ele morre aqui em vez
+ * de carregar conteúdo de fora numa janela com acesso à ponte do preload.
+ */
+function lockDown(win) {
+  const allowed = new URL(isDev ? DEV_SERVER : APP_URL).origin;
+  win.webContents.on('will-navigate', (e, url) => {
+    if (new URL(url).origin !== allowed) e.preventDefault();
+  });
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+}
+
 function load(win) {
+  lockDown(win);
   win.once('ready-to-show', () => win.show());
   win.loadURL(isDev ? DEV_SERVER : APP_URL);
+  saveBeforeClosing(win);
+}
+
+/**
+ * Salva o mundo antes de a janela fechar — inclusive quando quem fecha é
+ * `app.quit()`, como no protetor de tela. O `beforeunload` da página sozinho
+ * não basta: ele dispara um IPC assíncrono e o processo podia terminar antes de
+ * o arquivo ser escrito, perdendo até um intervalo de autosave a cada saída.
+ *
+ * Fechar é adiado até a página confirmar o salvamento (`__driftwoodFlush`), com
+ * um teto de tempo para uma página travada não segurar o protetor na tela.
+ */
+const FLUSH_TIMEOUT_MS = 3000;
+function saveBeforeClosing(win) {
+  let state = 'aberta'; // aberta → salvando → salva
+  win.on('close', (e) => {
+    if (state === 'salva') return;
+    e.preventDefault();
+    if (state === 'salvando') return;
+    state = 'salvando';
+    const flush = win.webContents
+      .executeJavaScript('window.__driftwoodFlush ? window.__driftwoodFlush() : null', true)
+      .catch(() => undefined);
+    const limit = new Promise((resolve) => setTimeout(resolve, FLUSH_TIMEOUT_MS));
+    Promise.race([flush, limit]).finally(() => {
+      state = 'salva';
+      if (!win.isDestroyed()) win.close();
+    });
+  });
 }
 
 /** Janela comum de desktop, com moldura. */
@@ -153,7 +208,8 @@ function createScreensaverWindow() {
   setTimeout(() => { armed = true; }, 1200);
   const quit = () => { if (armed) app.quit(); };
 
-  // Teclado e clique: chegam como before-input-event.
+  // Teclado: chega como before-input-event. O clique sem mover o mouse não
+  // chega por aqui; a página o trata chamando `driftwood.sair()` no modo protetor.
   win.webContents.on('before-input-event', quit);
   // Movimento do mouse: o Electron não tem evento global, então acompanha-se o
   // cursor. Sai assim que ele anda além de um limiar da posição inicial.
@@ -170,15 +226,31 @@ function createScreensaverWindow() {
 
 app.on('window-all-closed', () => app.quit());
 
+app.on('second-instance', () => {
+  // Uma segunda chamada (outro /s, ou abrir de novo) só traz a janela atual à frente.
+  const win = windows.find((w) => !w.isDestroyed());
+  if (win) {
+    if (win.isMinimized()) win.restore();
+    win.focus();
+  }
+});
+
 app.whenReady().then(() => {
+  if (!isPrimary) return;
+  // A única permissão que a página usa é tela cheia (tecla f).
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+    callback(permission === 'fullscreen');
+  });
   // Serve o dist/ pelo esquema app:// (usado quando não é modo dev).
   const distDir = path.join(__dirname, '..', 'dist');
   protocol.handle('app', (request) => {
     let rel = decodeURIComponent(new URL(request.url).pathname);
     if (rel === '/' || rel === '') rel = '/index.html';
     const target = path.join(distDir, rel);
-    // Não deixa sair de dist/ (defesa contra ../ no caminho).
-    if (!target.startsWith(distDir)) return new Response('', { status: 403 });
+    // Não deixa sair de dist/ (defesa contra ../ no caminho). `startsWith`
+    // aceitava pastas irmãs como `dist-electron/` (via `..%2Fdist-electron`).
+    const inside = path.relative(distDir, target);
+    if (inside.startsWith('..') || path.isAbsolute(inside)) return new Response('', { status: 403 });
     return net.fetch(pathToFileURL(target).toString());
   });
 
