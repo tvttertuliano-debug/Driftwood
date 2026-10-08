@@ -133,8 +133,19 @@ export const ecologySystem: System<DriftContext> = {
         p.fruit = Math.min(4, p.fruit + days * 0.5 * fruiting);
       }
       // Tempestade castiga; sol de inverno cansa.
-      if (isDangerous(ws.weather)) p.health = clamp01(p.health - days * severity(ws.weather) * 0.4);
-      else p.health = clamp01(p.health + days * 0.15);
+      if (isDangerous(ws.weather)) {
+        p.health = clamp01(p.health - days * severity(ws.weather) * 0.4);
+        // Raro: só cai o que já estava fraco (um incêndio, tempestades seguidas).
+        if (p.health <= 0) {
+          narrate(ws, ctx.bus, p.species === 'palmeira'
+            ? 'A tempestade derrubou uma palmeira. Ele vai sentir falta da sombra.'
+            : 'O vento arrancou um arbusto inteiro, com raiz e tudo.', 'perda');
+          ctx.bus.emit('planta-morreu', { entity: e, species: p.species });
+          ctx.world.destroy(e);
+        }
+      } else {
+        p.health = clamp01(p.health + days * 0.15);
+      }
     }
 
     // Erosão: tempestades comem a praia, a calmaria devolve areia.

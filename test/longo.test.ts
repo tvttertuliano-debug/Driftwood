@@ -26,6 +26,9 @@ describe('vida longa', () => {
       stepSimulation(sim);
       if (i % 1000 === 0) {
         for (const e of sim.world.query(CProp, CTransform)) {
+          // A jangada em viagem boia de propósito por algumas horas; o defeito
+          // era continuar boiando depois do desfecho.
+          if (sim.world.has(e, CBody)) continue;
           farthest = Math.max(farthest, Math.abs(sim.world.need(e, CTransform).x));
         }
       }
