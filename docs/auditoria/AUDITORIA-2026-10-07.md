@@ -52,7 +52,16 @@ seções abaixo mantêm o achado original.
 | B1 | ✅ `path.relative` | Electron em Linux: 403 |
 | B3 | ✅ condição de despertar corrigida | — |
 | B6 | ✅ HUD mostra as duas vagas | — |
-| D4, D5, D6, B2, B4, B5, B7, B8 e documentação | em aberto | — |
+| D4 | ✅ `CEphemeral` removido | — |
+| D5 | ✅ `CVisual.shadow` escala as sombras de chão (0,7 = sombra de sempre; 0 = o que voa) | quadro antes/depois |
+| D6 | ✅ configuração, uniformes, estágios e código mortos removidos; `Scheduler.cost` aparece no HUD com a tecla `d` | HUD no Chromium |
+| B2 | ✅ CSP na página; Electron bloqueia navegação, janelas novas e permissões (exceto tela cheia) | Chromium e Electron |
+| B4 | ✅ passo do scheduler e ids livres do ECS vão para o save | `test/simulation.test.ts` (passos 100 007 e 100 013) |
+| B5 | ✅ comentário corrigido | — |
+| B7, B8 | ✅ (B7 na correção do `pack:scr`; B8 na branch de testes) | — |
+| "Barras verticais pálidas" | ✅ causa achada: a cor de superfície descia pela coluna inteira do terreno | `05-barras-antes.jpg` / `06-barras-depois.jpg` |
+| Plantas não morriam (o README dizia que sim) | ✅ planta já fraca cai em tempestade | `test/plantas.test.ts` |
+| Documentação | ✅ `ARCHITECTURE.md` aponta para `ARQUITETURA.md`; `ROADMAP.md` escrito; `VISUAL_PIPELINE.md` com o bloco fechado e o exemplo que faltava | — |
 
 **Não verificado no Windows:** `/s` em tela cheia real, o diálogo `/c`, e o
 `.scr` empacotado com Electron 44. O roteiro de ponta a ponta rodou no Electron

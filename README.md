@@ -258,3 +258,6 @@ A fazer, em ordem de valor:
 4. HDR de verdade (`display-p3`, canvas de ponto flutuante) — hoje o pipeline é
    SDR com joelho suave no realce.
 5. Linux e macOS: o núcleo já é portátil; falta o equivalente ao contrato `.scr`.
+
+A lista completa, com o que a auditoria deixou em aberto, está em
+[docs/ROADMAP.md](docs/ROADMAP.md).

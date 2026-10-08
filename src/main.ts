@@ -12,7 +12,9 @@ import { dominantNeed } from './ai/needs.ts';
 
 /**
  * Ponto de entrada. Laço de passo fixo para a simulação, quadro livre para o
- * desenho. A janela pode ficar aberta por semanas: nada aqui aloca por quadro.
+ * desenho. A janela pode ficar aberta por semanas. As partículas não alocam; o
+ * resto aloca pouco por quadro (consultas ao ECS, a fila de desenháveis) e o
+ * coletor de lixo dá conta — medido sem crescimento de heap em dias de mundo.
  */
 
 const canvas = document.getElementById('stage') as HTMLCanvasElement;
