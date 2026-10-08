@@ -20,6 +20,11 @@ export interface BrushCtx {
   facing: 1 | -1;
   opacity: number;
   depth: number;
+  /**
+   * Força da sombra no chão, já normalizada: 1 é o típico, 0 é nenhuma (o que
+   * voa). Vem de `CVisual.shadow`, que antes era preenchido e ignorado.
+   */
+  shadow: number;
   /** Segundos de render (contínuo, para balanço e chamas). */
   time: number;
   season: string;
@@ -43,7 +48,7 @@ function ground(c: BrushCtx, rx: number, ry: number, strength = 1): void {
   const sc = shadowColor(c.l);
   // A sombra se estica para o lado oposto à luz.
   const off = -c.l.keyX * rx * 0.55;
-  c.p.softShadow(c.x + off, c.y - ry * 0.25, rx, ry, 0.32 * strength * c.opacity * (0.35 + c.l.sunUp), 2, sc);
+  c.p.softShadow(c.x + off, c.y - ry * 0.25, rx, ry, 0.32 * strength * c.shadow * c.opacity * (0.35 + c.l.sunUp), 2, sc);
 }
 
 // ────────────────────────────── vegetação ──────────────────────────────

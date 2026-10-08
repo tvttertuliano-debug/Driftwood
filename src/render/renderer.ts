@@ -326,6 +326,9 @@ export class Renderer {
       facing: tr.facing,
       opacity: vis.opacity,
       depth: tr.depth,
+      // Os valores de CVisual.shadow giram em torno de 0,7 (vegetação); 0,85 é
+      // construção, 0 é o que voa. Normalizado para 0,7 = sombra de sempre.
+      shadow: clamp(vis.shadow / 0.7, 0, 1.25),
       time: this.renderClock,
       season: ws.sky.season,
       wind: ws.weather.wind,

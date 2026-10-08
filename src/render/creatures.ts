@@ -13,7 +13,7 @@ function shade(c: BrushCtx, base: RGB, up = 0.7, side = 0.3): RGB {
 }
 
 function grounded(c: BrushCtx, rx: number, ry: number, strength = 0.6): void {
-  c.p.softShadow(c.x - c.l.keyX * rx * 0.5, c.y, rx, ry, 0.28 * strength * c.opacity, 2, shadowColor(c.l));
+  c.p.softShadow(c.x - c.l.keyX * rx * 0.5, c.y, rx, ry, 0.28 * strength * c.shadow * c.opacity, 2, shadowColor(c.l));
 }
 
 // ────────────────────────────── bichos da ilha ──────────────────────────────

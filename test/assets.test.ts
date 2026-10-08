@@ -27,7 +27,7 @@ function ctxFor(painter: Painter): BrushCtx {
   return {
     p: painter,
     l: computeLighting(ws.sky, ws.weather),
-    x: 0, y: 0, seed: 12345, scale: 1, facing: 1, opacity: 1, depth: 0,
+    x: 0, y: 0, seed: 12345, scale: 1, facing: 1, opacity: 1, depth: 0, shadow: 1,
     time: 3.2, season: ws.sky.season, wind: 0.5,
     // Objeto pronto, planta adulta: o caso em que todo pincel tem o que desenhar.
     extra: { progress: 1, condition: 1, growth: 1, health: 1, maxHeight: 22, fruit: 1, species: 0 },
