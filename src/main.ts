@@ -1,9 +1,9 @@
 import { PERSIST, SIM } from './core/config.ts';
 import { genesis } from './sim/genesis.ts';
-import { createSimulation, stepSimulation } from './simulation.ts';
+import { createSimulation, restoreSimulation, stepSimulation } from './simulation.ts';
 import { Renderer } from './render/renderer.ts';
 import { Ambience } from './audio/ambience.ts';
-import { applySave, loadWorld, savedSeed, saveWorld, setAsideSave, wipeSave } from './persist/save.ts';
+import { loadWorld, savedSeed, saveWorld, setAsideSave, wipeSave } from './persist/save.ts';
 import { parseSeed } from './core/rng.ts';
 import { formatClock, moonName } from './sim/calendar.ts';
 import { describe } from './sim/weather.ts';
@@ -50,7 +50,7 @@ async function boot(): Promise<void> {
   let sim = createSimulation(seed);
   if (saved) {
     try {
-      applySave(saved.blob, sim.world, sim.ws);
+      restoreSimulation(sim, saved.blob);
       // Mundo antigo, mas sem ninguém dentro: recomeça em vez de travar.
       if (sim.world.first(CCastaway) === null) genesis(sim.world, sim.ws);
     } catch (err) {

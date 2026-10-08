@@ -17,6 +17,8 @@ export interface SaveBlob {
   seed: number;
   minutes: number;
   worldSeconds: number;
+  /** Ausente em saves antigos. */
+  steps?: number;
   weather: unknown;
   flags: Record<string, number>;
   stats: Record<string, number>;
@@ -82,6 +84,7 @@ export function buildSave(world: World, ws: WorldState, savedAt = Date.now()): S
     seed: ws.seed,
     minutes: ws.cal.minutes,
     worldSeconds: ws.worldSeconds,
+    steps: ws.steps,
     weather: { ...ws.weather },
     flags: ws.flags,
     stats: ws.stats,
@@ -161,6 +164,7 @@ export async function loadWorld(): Promise<{ blob: SaveBlob; raw: string } | nul
 export function applySave(blob: any, world: World, ws: WorldState): void {
   ws.cal.minutes = blob.minutes;
   ws.worldSeconds = blob.worldSeconds;
+  ws.steps = typeof blob.steps === 'number' ? blob.steps : 0;
   Object.assign(ws.weather, blob.weather);
   ws.flags = blob.flags ?? {};
   ws.stats = blob.stats ?? {};

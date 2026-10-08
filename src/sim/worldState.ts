@@ -29,6 +29,8 @@ export interface WorldState {
   tide: number;
   /** Segundos de mundo desde o naufrágio. */
   worldSeconds: number;
+  /** Passos de simulação desde o naufrágio (fase dos sistemas com `every`). */
+  steps: number;
 
   /** Memória de longo prazo: o que já aconteceu, o que existe, o que ele sabe. */
   flags: Record<string, number>;
@@ -67,6 +69,7 @@ export function createWorldState(seed: number): WorldState {
     sky: readSky(cal),
     tide: 0,
     worldSeconds: cal.minutes * 60,
+    steps: 0,
     flags: {},
     stats: {},
     storyCooldowns: {},

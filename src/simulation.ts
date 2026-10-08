@@ -9,6 +9,7 @@ import {
 import { actSystem, mindSystem } from './ai/brain.ts';
 import { directorSystem } from './story/director.ts';
 import type { DriftContext } from './sim/context.ts';
+import { applySave, type SaveBlob } from './persist/save.ts';
 
 /**
  * Montagem da simulação, sem nada de navegador: o mesmo código roda na página,
@@ -55,5 +56,16 @@ export function stepSimulation(sim: Simulation, profile = false): void {
   sim.ctx.dt = SIM.step;
   sim.ctx.elapsed += SIM.step;
   sim.scheduler.run(sim.ctx, profile);
+  sim.ws.steps = sim.scheduler.tick;
   sim.bus.dispatch();
+}
+
+/**
+ * Aplica um save a uma simulação recém-criada com a mesma semente. Além do
+ * mundo, devolve ao scheduler o passo em que o save foi feito: é o que mantém
+ * a ecologia, o diretor e o envelhecimento rodando nos mesmos passos.
+ */
+export function restoreSimulation(sim: Simulation, blob: SaveBlob): void {
+  applySave(blob, sim.world, sim.ws);
+  sim.scheduler.tick = sim.ws.steps;
 }

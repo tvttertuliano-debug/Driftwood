@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { genesis } from '../src/sim/genesis.ts';
-import { createSimulation, stepSimulation, type Simulation } from '../src/simulation.ts';
-import { applySave, buildSave } from '../src/persist/save.ts';
+import { createSimulation, restoreSimulation, stepSimulation, type Simulation } from '../src/simulation.ts';
+import { buildSave } from '../src/persist/save.ts';
 
 /**
  * A simulação não conhece pixels, então dá para rodar dias de mundo sem
@@ -54,7 +54,7 @@ describe('persistência', () => {
     const blob = JSON.parse(snapshot(original));
 
     const restored = createSimulation(blob.seed);
-    applySave(blob, restored.world, restored.ws);
+    restoreSimulation(restored, blob);
 
     expect(snapshot(restored)).toBe(snapshot(original));
   });
@@ -64,7 +64,22 @@ describe('persistência', () => {
     const blob = JSON.parse(snapshot(original));
 
     const restored = createSimulation(blob.seed);
-    applySave(blob, restored.world, restored.ws);
+    restoreSimulation(restored, blob);
+
+    run(original, STEPS);
+    run(restored, STEPS);
+    expect(snapshot(restored)).toBe(snapshot(original));
+  });
+
+  // O autosave cai num passo qualquer. Antes, fora dos múltiplos de 20, a fase
+  // dos sistemas com `every` e os ids livres do ECS se perdiam e o mundo
+  // recarregado divergia.
+  it.each([100_007, 100_013])('recarregar no passo %i também continua igual', (steps) => {
+    const original = run(newWorld(771203), steps);
+    const blob = JSON.parse(snapshot(original));
+
+    const restored = createSimulation(blob.seed);
+    restoreSimulation(restored, blob);
 
     run(original, STEPS);
     run(restored, STEPS);
