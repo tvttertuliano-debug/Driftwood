@@ -227,17 +227,33 @@ export class Renderer {
       // O corpo da ilha é terra quente, não preto: mantém a leitura de pintura.
       const earthBody = mixColor([0.4, 0.31, 0.24], scaleColor(grass, 0.55), 0.45);
       let bodyBase = mixColor(earthBody, sandBody, beach);
-      bodyBase = mixColor(bodyBase, mixColor(ROCK, ROCK_DARK, 0.65), rockK);
-      const body = lit(bodyBase, l, 0.4, facing * 0.5);
+      bodyBase = mixColor(bodyBase, mixColor(ROCK, ROCK_DARK, 0.65), rockK * 0.2);
+      const body = lit(bodyBase, l, 0.4, facing * 0.15);
 
       // Corpo até a linha d'água, em dois trechos. Com um único gradiente do
       // topo até o mar, a cor da superfície só existia na crista e a encosta
       // inteira virava terra: a faixa de vegetação some da imagem.
+      //
+      // O terreno é pintado em colunas verticais, e a cor de cada coluna vem da
+      // superfície no topo dela. Tudo que varia de coluna para coluna — rocha
+      // na encosta íngreme, o lado da luz — vira uma barra vertical se descer
+      // pela coluna inteira: eram as "barras pálidas" na encosta que a
+      // auditoria de julho não explicou. Por isso o material e a luz direcional
+      // ficam numa pele fina que acompanha a superfície (SKIN unidades), e o
+      // interior usa a vegetação sem rocha e com pouca luz lateral, que muda
+      // devagar de uma coluna para a outra.
+      const SKIN = 2.2;
+      const vegBase = mixColor(grassTop, sandTop, beach);
+      const veg = lit(vegBase, l, 1, facing * 0.15);
       const mid1a = lerp(waterY, ha, 0.42);
       const mid1b = lerp(waterY, hb, 0.42);
-      const midCol = mixColor(top, body, 0.42);
-      p.triShaded(xa, mid1a, midCol, 1, xa, ha, top, 1, xb, hb, top, 1);
-      p.triShaded(xa, mid1a, midCol, 1, xb, hb, top, 1, xb, mid1b, midCol, 1);
+      const skinA = Math.max(mid1a, ha - SKIN);
+      const skinB = Math.max(mid1b, hb - SKIN);
+      const midCol = mixColor(veg, body, 0.42);
+      p.triShaded(xa, skinA, veg, 1, xa, ha, top, 1, xb, hb, top, 1);
+      p.triShaded(xa, skinA, veg, 1, xb, hb, top, 1, xb, skinB, veg, 1);
+      p.triShaded(xa, mid1a, midCol, 1, xa, skinA, veg, 1, xb, skinB, veg, 1);
+      p.triShaded(xa, mid1a, midCol, 1, xb, skinB, veg, 1, xb, mid1b, midCol, 1);
       p.triShaded(xa, waterY, body, 1, xa, mid1a, midCol, 1, xb, mid1b, midCol, 1);
       p.triShaded(xa, waterY, body, 1, xb, mid1b, midCol, 1, xb, waterY, body, 1);
       const skirt = waterY - 2.2;
