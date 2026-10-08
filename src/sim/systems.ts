@@ -6,7 +6,7 @@ import { severity, stepWeather, isDangerous } from './weather.ts';
 import { tideAt } from './tides.ts';
 import { bump, flag, narrate, setFlag } from './worldState.ts';
 import {
-  CBody, CCastaway, CCritter, CEphemeral, CPlant, CProp, CRare, CTransform, CVisual,
+  CBody, CCastaway, CCritter, CPlant, CProp, CRare, CTransform, CVisual,
 } from './components.ts';
 import { DOES_NOT_WEAR } from './queries.ts';
 import type { DriftContext } from './context.ts';
@@ -228,14 +228,7 @@ export const ephemeralSystem: System<DriftContext> = {
   name: 'efêmeros',
   stage: Stage.Physics,
   update(ctx) {
-    for (const e of ctx.world.query(CEphemeral)) {
-      const f = ctx.world.need(e, CEphemeral);
-      f.ttl -= ctx.dt;
-      const vis = ctx.world.get(e, CVisual);
-      if (vis) vis.opacity = clamp01(f.ttl / Math.max(0.001, f.fade));
-      if (f.ttl <= 0) ctx.world.destroy(e);
-    }
-    // Entidades de eventos raros também têm relógio próprio.
+    // Entidades de eventos raros têm relógio próprio e somem ao zerar.
     for (const e of ctx.world.query(CRare)) {
       const r = ctx.world.need(e, CRare);
       r.ttl -= ctx.dt;
@@ -257,7 +250,7 @@ export const appearSystem: System<DriftContext> = {
   update(ctx) {
     for (const e of ctx.world.query(CVisual)) {
       const v = ctx.world.need(e, CVisual);
-      if (v.opacity < 1 && !ctx.world.has(e, CEphemeral)) {
+      if (v.opacity < 1) {
         v.opacity = clamp01(v.opacity + ctx.dt * 0.6);
       }
     }

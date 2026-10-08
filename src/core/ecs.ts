@@ -274,10 +274,8 @@ export enum Stage {
   Ecology = 4,
   /** Diretor narrativo e eventos raros. */
   Director = 5,
-  /** Áudio ambiente. */
-  Audio = 6,
-  /** Persistência. */
-  Persist = 7,
+  // Áudio e persistência não são sistemas: rodam no laço de main.ts, por quadro
+  // e por intervalo de tempo real, fora do passo fixo.
 }
 
 export interface SimContext {

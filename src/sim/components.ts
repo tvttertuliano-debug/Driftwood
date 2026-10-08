@@ -75,7 +75,6 @@ export interface Brain {
   /** Fase interna da ação (cada ação interpreta como quiser). */
   phase: number;
   targetX: number;
-  targetEntity: number;
   /** Ação -> instante da última execução, para evitar repetição. */
   lastRun: Record<string, number>;
   /** Trilha de intenção: o que ele planeja fazer em seguida, se nada mudar. */
@@ -84,7 +83,7 @@ export interface Brain {
   frustration: number;
 }
 export const CBrain = defineComponent<Brain>('Brain', () => ({
-  action: 'ocioso', elapsed: 0, duration: 3, phase: 0, targetX: 0, targetEntity: 0,
+  action: 'ocioso', elapsed: 0, duration: 3, phase: 0, targetX: 0,
   lastRun: {}, intent: '', frustration: 0,
 }));
 
@@ -166,9 +165,3 @@ export interface RareMark {
 }
 export const CRare = defineComponent<RareMark>('RareMark', () => ({ event: '', ttl: 60, phase: 0 }));
 
-/** Vida útil simples: some quando zera. Usado por efeitos e coisas efêmeras. */
-export interface Ephemeral {
-  ttl: number;
-  fade: number;
-}
-export const CEphemeral = defineComponent<Ephemeral>('Ephemeral', () => ({ ttl: 5, fade: 1 }), false);

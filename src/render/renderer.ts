@@ -487,7 +487,6 @@ export class Renderer {
       moonPos: [cam.worldToNdcX(ws.sky.moonAzimuth * 260, aspect), cam.worldToNdcY(waterY) + ws.sky.moonAltitude * 1.25],
       waveAmp: swell(ws.weather.wind, ws.tide) * 0.5,
       octaves: q.oceanOctaves,
-      zoom: cam.view,
     }, ws.seed);
 
     // 2. Geometria do mundo.
@@ -567,31 +566,6 @@ export class Renderer {
       aberration: storm * 0.0035 + l.flash * 0.004,
       time: this.renderClock,
     };
-  }
-
-  /** Faixa com alfa em rampa: opaca na borda da tela, invisível para dentro. */
-  private gradientBand(
-    ax: number, ay: number, bx: number, by: number,
-    cx: number, cy: number, dx: number, dy: number,
-    col: RGB, outer: number,
-  ): void {
-    // a,b = borda externa (alfa = outer); c,d = borda interna (alfa = 0).
-    this.painter.triShaded(ax, ay, col, outer, bx, by, col, outer, cx, cy, col, 0);
-    this.painter.triShaded(ax, ay, col, outer, cx, cy, col, 0, dx, dy, col, 0);
-  }
-
-  /** Vinheta suave. Fecha a moldura sem deixar arestas visíveis. */
-  private drawVignette(left: number, right: number, top: number, bottom: number, l: Lighting): void {
-    const col = shadowColor(l);
-    const w = right - left;
-    const h = top - bottom;
-    const vb = h * 0.3;
-    const hb = w * 0.22;
-    const a = 0.34;
-    this.gradientBand(left, top, right, top, right, top - vb, left, top - vb, col, a);
-    this.gradientBand(left, bottom, right, bottom, right, bottom + vb, left, bottom + vb, col, a * 0.85);
-    this.gradientBand(left, bottom, left, top, left + hb, top, left + hb, bottom, col, a * 0.75);
-    this.gradientBand(right, bottom, right, top, right - hb, top, right - hb, bottom, col, a * 0.75);
   }
 
   get particleCount(): number {

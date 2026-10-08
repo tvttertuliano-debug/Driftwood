@@ -207,6 +207,11 @@ async function boot(): Promise<void> {
       needs ? `impulso: ${dominantNeed(needs)}   humor ${(world.need(self!, CCastaway).mood * 100) | 0}%` : '',
       `obra: ${ws.activeStory ?? '—'}   acontecimento: ${ws.sideStory ?? '—'}   entidades ${world.entityCount}   partículas ${renderer.particleCount}`,
       `${fps} fps   quadro ${renderer.frameMs.toFixed(1)} ms   desenho ${renderer.renderMs.toFixed(1)} ms   qualidade ${renderer.quality}   [i] hud  [p] pausa  [f] tela cheia  [m] som`,
+      // Tecla d (de desenvolvimento): custo médio por sistema, em ms por passo.
+      profiling
+        ? `custo: ${[...scheduler.cost].sort((a, b) => b[1] - a[1]).slice(0, 6)
+          .map(([name, ms]) => `${name} ${ms.toFixed(3)}`).join('   ')}`
+        : '',
     ];
     hudEl.textContent = lines.filter(Boolean).join('\n');
   }
